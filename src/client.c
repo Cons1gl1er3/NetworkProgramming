@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "auth.h"
 
 #define PORT 5501
 #define IP_ADDRESS "127.0.0.1"
@@ -40,9 +41,10 @@ int main() {
 
     printf("Connected to the server!\n");
 
-    while (1) {
+    int logged_in = 0;
+    while (!logged_in) {
         // Display menu
-        printf("=====MAIN PAGE=====");
+        printf("=====LOGIN/REGISTER=====");
         printf("\nChoose an option:\n");
         printf("1. Register\n");
         printf("2. Login\n");
@@ -55,33 +57,37 @@ int main() {
             send(sock, "QUIT", strlen("QUIT"), 0);
             printf("Exiting the client...\n");
             break;
-        }
-        char username[50], password[50];
-        if (choice == 1 || choice == 2) {
-            printf("Enter username: ");
-            fgets(username, 50, stdin);
-            username[strcspn(username, "\n")] = 0; // Remove newline character
+        } else if (choice == 1 || choice == 2) {
+            do {
+                // Get user authentication info
+                get_auth_info(buffer, sizeof(buffer), choice);
 
-            printf("Enter password: ");
-            fgets(password, 50, stdin);
-            password[strcspn(password, "\n")] = 0; // Remove newline character
+                // Send to server
+                send(sock, buffer, strlen(buffer), 0);
 
-            // Prepare the command
-            if (choice == 1) {
-                snprintf(buffer, sizeof(buffer), "REGISTER %s %s", username, password);
-            } else if (choice == 2) {
-                snprintf(buffer, sizeof(buffer), "LOGIN %s %s", username, password);
-            }
+                // Clear and read response
+                memset(buffer, 0, sizeof(buffer));
+                read(sock, buffer, sizeof(buffer));
 
-            // Send to server
-            send(sock, buffer, strlen(buffer), 0);
+                // Print server response
+                printf("%s\n", buffer);
 
-            // Read response
-            memset(buffer, 0, sizeof(buffer)); // clear the previous buffer
-            read(sock, buffer, sizeof(buffer));
-            printf("%s\n", buffer);
+                if (strcmp(buffer, "Login successful\n") == 0) {
+                    // Mark as logged in and break out of the loop
+                    logged_in = 1;
+                    break;
+                }
+            } while (strcmp(buffer, "Username already exists\n") == 0);
         } else {
             printf("Invalid choice. Please try again.\n");
+        }
+    }
+    
+    if (logged_in) {
+        printf("\nWelcome to the main menu!\n");
+        while (1) {
+            // Keep the client alive or process main menu commands
+            sleep(1); // Pause for 1 second (adjust logic as needed)
         }
     }
 

@@ -92,7 +92,7 @@ int main() {
 
         printf("New client connected.\n");
         handle_client(client_socket);
-        create_room();
+        // create_room();
     }
 
     return 0;

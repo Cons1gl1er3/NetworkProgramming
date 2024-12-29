@@ -64,3 +64,22 @@ int login_user(const char *username, const char *password) {
     fclose(file);
     return 0; // Login failed
 }
+
+void get_auth_info(char *buffer, size_t buffer_size, int choice) {
+    memset(buffer, 0, buffer_size);
+    char username[50], password[50];
+    printf("Enter username: ");
+    fgets(username, 50, stdin);
+    username[strcspn(username, "\n")] = 0; // Remove newline character
+
+    printf("Enter password: ");
+    fgets(password, 50, stdin);
+    password[strcspn(password, "\n")] = 0; // Remove newline character
+
+    // Prepare the command
+    if (choice == 1) {
+        snprintf(buffer, buffer_size, "REGISTER %s %s", username, password);
+    } else if (choice == 2) {
+        snprintf(buffer, buffer_size, "LOGIN %s %s", username, password);
+    }
+}

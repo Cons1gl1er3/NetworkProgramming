@@ -31,4 +31,6 @@ int register_user(const char *username, const char *password);
  */
 int login_user(const char *username, const char *password);
 
+void get_auth_info(char *buffer, size_t buffer_size, int choice);
+
 #endif // AUTH_H
