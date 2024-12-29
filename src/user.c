@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include "user.h"
 
-#define USER_DB_FILE "data/users.txt"
+#define USER_DB_FILE "data\\users.txt"
 
 bool isUsernameTaken(const char *username) {
     FILE *file = fopen(USER_DB_FILE, "r");

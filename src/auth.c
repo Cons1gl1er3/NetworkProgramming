@@ -1,37 +1,66 @@
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
-#include "auth.h"
-#include "user.h" // For saving user data
+#include "user.h"
 
-#define MAX_USERNAME_LEN 50
-#define MAX_PASSWORD_LEN 100
-#define MAX_EMAIL_LEN 100
+#define USERS_FILE "data/users.txt"
 
-bool registerUser(const char *username, const char *password, const char *email) {
-    // Validate inputs
-    if (strlen(username) == 0 || strlen(password) == 0 || strlen(email) == 0) {
-        printf("All fields are required.\n");
-        return false;
+// Check if username exists
+int user_exists(const char *username) {
+    FILE *file = fopen(USERS_FILE, "r");
+    if (!file) return 0; // File does not exist, no users
+
+    char line[100];
+    while (fgets(line, sizeof(line), file)) {
+        char existing_username[50];
+        sscanf(line, "%[^:]:%*s", existing_username);
+        if (strcmp(username, existing_username) == 0) {
+            fclose(file);
+            return 1; // Username found
+        }
     }
 
-    if (strlen(username) > MAX_USERNAME_LEN || strlen(password) > MAX_PASSWORD_LEN || strlen(email) > MAX_EMAIL_LEN) {
-        printf("Input exceeds maximum allowed length.\n");
-        return false;
+    fclose(file);
+    return 0; // Username not found
+}
+
+// Register user
+int register_user(const char *username, const char *password) {
+    if (user_exists(username)) {
+        return 0; // Username already exists
     }
 
-    // Check if username already exists
-    if (isUsernameTaken(username)) {
-        printf("Username already taken.\n");
-        return false;
+    FILE *file = fopen(USERS_FILE, "a");
+    if (!file) {
+        perror("Failed to open users.txt for appending");
+        return -1; // Error occurred
     }
 
-    // Save the user to the database (file-based for now)
-    if (saveUser(username, password, email)) {
-        printf("User registered successfully!\n");
-        return true;
-    } else {
-        printf("Error saving user data.\n");
-        return false;
+    // Write the new user's credentials to the file
+    fprintf(file, "%s:%s\n", username, password); // Append to file
+    fclose(file);
+    return 1; // Success
+}
+
+// Login function
+int login_user(const char *username, const char *password) {
+    FILE *file = fopen(USERS_FILE, "r");
+    if (!file) {
+        perror("Failed to open users.txt for reading");
+        return -1; // Error occurred
     }
+
+    char line[100];
+    while (fgets(line, sizeof(line), file)) {
+        char existing_username[50], existing_password[50];
+        sscanf(line, "%[^:]:%s", existing_username, existing_password);
+
+        if (strcmp(username, existing_username) == 0 &&
+            strcmp(password, existing_password) == 0) {
+            fclose(file);
+            return 1; // Login successful
+        }
+    }
+
+    fclose(file);
+    return 0; // Login failed
 }

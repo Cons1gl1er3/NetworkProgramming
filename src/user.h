@@ -1,10 +1,9 @@
 #ifndef USER_H
 #define USER_H
 
-#include <stdbool.h>
-
-// Function declarations
-bool isUsernameTaken(const char *username);
-bool saveUser(const char *username, const char *password, const char *email);
+typedef struct {
+    char username[50];
+    char password[50];
+} User;
 
 #endif // USER_H
