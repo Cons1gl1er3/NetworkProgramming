@@ -12,7 +12,15 @@
 #include <fcntl.h>
 
 #define PORT 5500
-#define MAX_CLIENTS 10
+#define MAX_CLIENTS 100
+
+typedef struct {
+    char user_id[50]; // User ID
+    int socket_fd;    // Socket file descriptor
+} UserMap;
+
+// Hash table to store user-to-socket mapping
+UserMap user_table[MAX_CLIENTS];
 
 int set_nonblocking(int sock) {
     int flags = fcntl(sock, F_GETFL, 0);
@@ -20,46 +28,33 @@ int set_nonblocking(int sock) {
     return fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 }
 
-// void handle_client(int client_socket) {
-//     char buffer[1024] = {0};
+int add_user(const char *user_id, int socket_fd) {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (user_table[i].user_id[0] == '\0') { // Find an empty slot
+            strncpy(user_table[i].user_id, user_id, sizeof(user_table[i].user_id) - 1);
+            user_table[i].socket_fd = socket_fd;
+            printf("Added user %s with socket FD %d\n", user_id, socket_fd);
+            return 0; // Success
+        }
+    }
+    printf("Failed to add user %s: user table is full\n", user_id);
+    return -1; // Table is full
+}
 
-//     while (1) {
-//         memset(buffer, 0, sizeof(buffer));
-//         int bytes_read = read(client_socket, buffer, sizeof(buffer));
-//         if (bytes_read <= 0) break; // Client disconnected
+int remove_user(int socket_fd) {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (user_table[i].socket_fd == socket_fd) {
+            printf("Removing user %s with socket FD %d\n", user_table[i].user_id, socket_fd);
+            user_table[i].user_id[0] = '\0'; // Clear user ID
+            user_table[i].socket_fd = -1;   // Reset socket FD
+            return 0; // Success
+        }
+    }
+    printf("Failed to remove user with socket FD %d: not found\n", socket_fd);
+    return -1; // User not found
+}
 
-//         if (strncmp(buffer, "QUIT", 4) == 0) {
-//             printf("Client disconnected.\n");
-//             break;
-//         }
-
-//         char command[10], username[50], password[50];
-//         sscanf(buffer, "%s %s %s", command, username, password);
-
-//         if (strcmp(command, "REGISTER") == 0) {
-//             int result = register_user(username, password);
-//             if (result == 1) {
-//                 send(client_socket, "Registration successful\n", 25, 0);
-//             } else if (result == 0) {
-//                 send(client_socket, "Username already exists\n", 25, 0);
-//             } else {
-//                 send(client_socket, "Registration failed\n", 21, 0);
-//             }
-//         } else if (strcmp(command, "LOGIN") == 0) {
-//             int result = login_user(username, password);
-//             if (result == 1) {
-//                 send(client_socket, "Login successful\n", 18, 0);
-//             } else {
-//                 send(client_socket, "Invalid credentials\n", 21, 0);
-//             }
-//         } else {
-//             send(client_socket, "Invalid command\n", 17, 0);
-//         }
-//     }
-//     // close(client_socket);
-// }
-
-int handle_client(int client_socket) {
+int authenticate_client(int client_socket) {
     char buffer[1024] = {0};
 
     memset(buffer, 0, sizeof(buffer));
@@ -89,6 +84,9 @@ int handle_client(int client_socket) {
         int result = login_user(username, password);
         if (result == 1) {
             send(client_socket, "Login successful\n", 18, 0);
+
+            // Add the authenticated user to the user_table
+            add_user(username, client_socket);
         } else {
             send(client_socket, "Invalid credentials\n", 21, 0);
         }
@@ -99,13 +97,20 @@ int handle_client(int client_socket) {
     return 0; // Indicate successful processing
 }
 
+void init_user_table() {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        user_table[i].user_id[0] = '\0'; // Mark as empty
+        user_table[i].socket_fd = -1;
+    }
+}
+
 int main() {
     int server_fd, client_socket, max_fd, activity, valread, sd;
     int client_sockets[MAX_CLIENTS] = {0};
     struct sockaddr_in address;
     int addrlen = sizeof(address);
-    // char buffer[1024];
     fd_set read_fds;
+    init_user_table();
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -179,13 +184,16 @@ int main() {
             sd = client_sockets[i];
 
             if (FD_ISSET(sd, &read_fds)) {
-                int result = handle_client(sd);
+                int result = authenticate_client(sd);
 
                 if (result < 0) {
                     // Client disconnected or error
                     close(sd);
                     client_sockets[i] = 0;
                     printf("Client disconnected\n");
+
+                    // Remove the user from the user_table
+                    remove_user(sd);
                 }
             }
         }
