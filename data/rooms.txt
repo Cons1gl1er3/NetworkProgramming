@@ -1,1 +1,0 @@
-102|auction 1|no description here ok?|private|123|password|5|0|11:20:00|123|2|4|0|0|0

@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 #include "auth.h"
 
-#define PORT 5501
+#define PORT 5500
 #define IP_ADDRESS "127.0.0.1"
 
 int main() {
@@ -85,6 +85,9 @@ int main() {
     
     if (logged_in) {
         printf("\nWelcome to the main menu!\n");
+        // Select a feature
+        // View all the function rooms
+        // Create a function rooms
         while (1) {
             // Keep the client alive or process main menu commands
             sleep(1); // Pause for 1 second (adjust logic as needed)
