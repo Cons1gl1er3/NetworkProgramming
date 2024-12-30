@@ -33,4 +33,8 @@ int login_user(const char *username, const char *password);
 
 void get_auth_info(char *buffer, size_t buffer_size, int choice);
 
+int register_function(char buffer[], int sd);
+
+int login_function(char buffer[], int sd);
+
 #endif // AUTH_H

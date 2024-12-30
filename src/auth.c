@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/socket.h>
 #include "user.h"
 
 #define USERS_FILE "data/users.txt"
@@ -82,4 +83,34 @@ void get_auth_info(char *buffer, size_t buffer_size, int choice) {
     } else if (choice == 2) {
         snprintf(buffer, buffer_size, "LOGIN %s %s", username, password);
     }
+}
+
+int register_function(char buffer[], int sd) {
+    char command[20], username[50], password[50];
+    sscanf(buffer, "%s %s %s", command, username, password);
+
+    int result = register_user(username, password);
+    if (result == 1) {
+        send(sd, "Registration successful\n", 25, 0);
+    } else if (result == 0) {
+        send(sd, "Username already exists\n", 25, 0);
+    } else {
+        send(sd, "Registration failed\n", 21, 0);
+    }
+    
+    return result; // Indicate successful processing
+}
+
+int login_function(char buffer[], int sd) {
+    char command[20], username[50], password[50];
+    sscanf(buffer, "%s %s %s", command, username, password);
+    int result = login_user(username, password);
+    if (result == 1) {
+        send(sd, "Login successful\n", 18, 0);
+
+        // Add the authenticated user to the user_table
+    } else {
+        send(sd, "Invalid credentials\n", 21, 0);
+    }
+    return result; // Indicate successful processing
 }

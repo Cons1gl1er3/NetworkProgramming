@@ -54,49 +54,6 @@ int remove_user(int socket_fd) {
     return -1; // User not found
 }
 
-int authenticate_client(int client_socket) {
-    char buffer[1024] = {0};
-
-    memset(buffer, 0, sizeof(buffer));
-    int bytes_read = read(client_socket, buffer, sizeof(buffer));
-    if (bytes_read <= 0) {
-        return -1; // Indicate disconnection or error
-    }
-
-    if (strncmp(buffer, "QUIT", 4) == 0) {
-        printf("Client requested to disconnect.\n");
-        return -1; // Indicate disconnection
-    }
-
-    char command[10], username[50], password[50];
-    sscanf(buffer, "%s %s %s", command, username, password);
-
-    if (strcmp(command, "REGISTER") == 0) {
-        int result = register_user(username, password);
-        if (result == 1) {
-            send(client_socket, "Registration successful\n", 25, 0);
-        } else if (result == 0) {
-            send(client_socket, "Username already exists\n", 25, 0);
-        } else {
-            send(client_socket, "Registration failed\n", 21, 0);
-        }
-    } else if (strcmp(command, "LOGIN") == 0) {
-        int result = login_user(username, password);
-        if (result == 1) {
-            send(client_socket, "Login successful\n", 18, 0);
-
-            // Add the authenticated user to the user_table
-            add_user(username, client_socket);
-        } else {
-            send(client_socket, "Invalid credentials\n", 21, 0);
-        }
-    } else {
-        send(client_socket, "Invalid command\n", 17, 0);
-    }
-
-    return 0; // Indicate successful processing
-}
-
 void init_user_table() {
     for (int i = 0; i < MAX_CLIENTS; i++) {
         user_table[i].user_id[0] = '\0'; // Mark as empty
@@ -138,6 +95,7 @@ int main() {
     }
     printf("Server listening on port %d\n", PORT);
 
+    //=====================================Main program here==========================================//
     while (1) {
         // Clear and set the file descriptor set
         FD_ZERO(&read_fds);
@@ -184,9 +142,12 @@ int main() {
             sd = client_sockets[i];
 
             if (FD_ISSET(sd, &read_fds)) {
-                int result = authenticate_client(sd);
+                // If there's a request from a socket
+                char buffer[1024] = {0};
 
-                if (result < 0) {
+                int bytes_read = read(sd, buffer, sizeof(buffer));
+
+                if (bytes_read <= 0) {
                     // Client disconnected or error
                     close(sd);
                     client_sockets[i] = 0;
@@ -194,6 +155,29 @@ int main() {
 
                     // Remove the user from the user_table
                     remove_user(sd);
+                }
+
+                char command[20];
+                sscanf(buffer, "%s", command);
+
+                if (strcmp(command, "REGISTER") == 0) {
+                    register_function(buffer, sd);
+                } else if (strcmp(command, "LOGIN") == 0) {
+                    int result = login_function(buffer, sd);
+                    if (result == 1) {
+                        char username[50];
+                        sscanf(buffer, "%s %s", command, username);
+                        add_user(username, sd);
+                    }
+                } else if (strcmp(command, "CREATEROOM") == 0) {
+                    printf("Called Create Room!\n");
+                } if (strcmp(command, "QUIT") == 0) {
+                    printf("Client requested to disconnect.\n");
+                    close(sd);
+                    client_sockets[i] = 0;
+                    printf("Client disconnected\n");
+                } else {
+                    send(sd, "Invalid command\n", 17, 0);
                 }
             }
         }
