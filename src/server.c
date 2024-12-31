@@ -14,6 +14,8 @@
 #define PORT 5500
 #define MAX_CLIENTS 100
 
+Room list_room[15];
+
 typedef struct {
     char user_id[50]; // User ID
     int socket_fd;    // Socket file descriptor
@@ -159,7 +161,6 @@ int main() {
 
                 char command[20];
                 sscanf(buffer, "%s", command);
-
                 if (strcmp(command, "REGISTER") == 0) {
                     register_function(buffer, sd);
                 } else if (strcmp(command, "LOGIN") == 0) {
@@ -170,8 +171,9 @@ int main() {
                         add_user(username, sd);
                     }
                 } else if (strcmp(command, "CREATEROOM") == 0) {
-                    printf("Called Create Room!\n");
-                } if (strcmp(command, "QUIT") == 0) {
+                create_room_function(buffer,sd);
+                }
+                else if (strcmp(command, "QUIT") == 0) {
                     printf("Client requested to disconnect.\n");
                     close(sd);
                     client_sockets[i] = 0;

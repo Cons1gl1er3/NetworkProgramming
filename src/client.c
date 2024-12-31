@@ -7,9 +7,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "auth.h"
+#include "room.h"
+
 
 #define PORT 5500
 #define IP_ADDRESS "127.0.0.1"
+
 
 int main() {
     int sock = 0;
@@ -82,18 +85,33 @@ int main() {
             printf("Invalid choice. Please try again.\n");
         }
     }
-    
-    if (logged_in) {
-        printf("\nWelcome to the main menu!\n");
-        // Select a feature
-        // View all the function rooms
-        // Create a function rooms
-        while (1) {
-            // Keep the client alive or process main menu commands
-            sleep(1); // Pause for 1 second (adjust logic as needed)
+
+    if(logged_in)
+    {
+        memset(buffer, 0, sizeof(buffer));
+        int menu_choice;
+        while(1){
+        printf("Welcome to the auction app!\n");
+        printf("\nChoose an option:\n");
+        printf("1. Create a room\n");
+        printf("2. Quit\n");
+        scanf("%d", &menu_choice);
+        getchar();
+        if(menu_choice==1) 
+        {
+            create_room(buffer,sock);
+            send(sock, buffer, strlen(buffer), 0);
+            memset(buffer, 0, sizeof(buffer));
+            read(sock, buffer, sizeof(buffer));
+            printf("%s\n", buffer);
+        }
+        else if(menu_choice ==2) {send(sock, "QUIT", strlen("QUIT"), 0);
+            printf("Exiting the client...\n");
+            break;
+        }
         }
     }
-
+   
     close(sock);
     return 0;
 }

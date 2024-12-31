@@ -8,7 +8,7 @@ SRC_DIR = src
 
 # Source files with paths
 SRC_SERVER = $(SRC_DIR)/server.c $(SRC_DIR)/auth.c $(SRC_DIR)/user.c $(SRC_DIR)/auction_room.c $(SRC_DIR)/utils.c $(SRC_DIR)/room.c
-SRC_CLIENT = $(SRC_DIR)/client.c $(SRC_DIR)/auth.c $(SRC_DIR)/utils.c
+SRC_CLIENT = $(SRC_DIR)/client.c $(SRC_DIR)/auth.c $(SRC_DIR)/utils.c $(SRC_DIR)/room.c
 
 # Executable names with paths
 SERVER_EXEC = server
