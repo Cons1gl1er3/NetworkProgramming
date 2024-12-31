@@ -5,6 +5,8 @@
 #include "room.h"
 
 #define ROOMS_FILE "data/rooms.txt"
+#define MAX_BUFFER_SIZE 2000
+#define PRINT_ROOMS 10
 
 // Generate a new room ID (scan through every row in the room database to get the current max id)
 int generate_room_id() {
@@ -55,7 +57,44 @@ void view_lobby(int sd) {
     // Push the the buffer
     // Send back to client
     FILE *file = fopen(ROOMS_FILE, "r");
+    if (!file) {
+        perror("Failed to open file");
+        return;
+    }
+    char buffer[MAX_BUFFER_SIZE];
+    memset(buffer, 0, sizeof(buffer));
+    char line[256];
+    int room_count = 0;
+    
+    char room_id[50];
+    char name[50];
+    int type;
+    char password[50];
+    char category[50];
+    int size;
+    char start_time[50];
+    char status[50];
 
+    // Read up to 10 rooms from the file
+    while (fgets(line, sizeof(line), file) && room_count < PRINT_ROOMS) {
+        // Parse line into fields
+        sscanf(line, "%49[^:]:%49[^:]:%d:%49[^:]:%49[^:]:%d:%49[^:]:%49s",
+               room_id, name, &type, password, category, &size, start_time, status);
+
+        // Append the parsed room data into the buffer
+        char row[256];
+        snprintf(row, sizeof(row), "%-10s %-15s %-5d %-20s %-5d %-15s %-10s\n",
+                 room_id, name, type, category, size, start_time, status);
+        // Concatenate to buffer
+        strncat(buffer, row, sizeof(buffer) - strlen(buffer) - 1);
+
+        room_count++;
+    }
+
+    fclose(file);
+
+    // Send the buffer to the client
+    send(sd, buffer, strlen(buffer), 0);
 }
 
 int create_room() {

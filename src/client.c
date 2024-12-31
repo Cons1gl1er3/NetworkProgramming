@@ -89,6 +89,7 @@ int main() {
         printf("Choose an option:\n");
         printf("1. View lobby\n");
         printf("2. Create room\n");
+        printf("Enter your choice: ");
         scanf("%d", &choice);
         getchar(); // Consume the newline character left by scanf
         memset(buffer, 0, sizeof(buffer));
@@ -97,11 +98,22 @@ int main() {
             case 1:
                 snprintf(buffer, sizeof(buffer), "VIEWLOBBY");
                 send(sock, buffer, strlen(buffer), 0);
-                memset(buffer, 0, sizeof(buffer));
-                read(sock, buffer, sizeof(buffer));
                 
+                char buffer_temp[2000];
+                memset(buffer_temp, 0, sizeof(buffer_temp));
+                read(sock, buffer_temp, sizeof(buffer_temp));
+                
+                printf("%-10s %-15s %-5s %-20s %-5s %-15s %-10s\n",
+                 "ID", "Name", "Type", "Category", "Size", "Start Time", "Status");
                 // Print server response
-                printf("%s\n", buffer);
+                printf("%s\n", buffer_temp);
+                break;
+            case 2:
+                printf("CREATEROOM request to server\n");
+                break;
+            default:
+                printf("Error!\n");
+                break;
         }
 
         while (1) {
