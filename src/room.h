@@ -27,4 +27,6 @@ int add_room_to_database(const Room *room);
 
 int create_room();
 
+void view_lobby(int sd);
+
 #endif // ROOM_H

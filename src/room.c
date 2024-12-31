@@ -49,6 +49,15 @@ int add_room_to_database(const Room *room) {
     return 1; // Success
 }
 
+void view_lobby(int sd) {
+    // Find 10 last rooms within the list
+    // Declare the printing format
+    // Push the the buffer
+    // Send back to client
+    FILE *file = fopen(ROOMS_FILE, "r");
+
+}
+
 int create_room() {
     Room new_room;
 
