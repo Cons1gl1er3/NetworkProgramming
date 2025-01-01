@@ -12,36 +12,43 @@
 #include "room.h"
 #include "uthash.h"
 
-#define PORT 5500
-#define MAX_CLIENTS 100
-#define USERNAME_LEN 50
-#define ROOM_ID_LEN 50
-#define ITEM_ID_LEN 50
-
-//=========================Real time data==================================//
-typedef struct {
-    char user_id[50]; // User ID
-    int socket_fd;    // Socket file descriptor
-} UserMap;
-
-typedef struct {
-    char user_id[USERNAME_LEN];
-} Participant;
-
-typedef struct AuctionRoom {
-    char room_id[ROOM_ID_LEN];          // Key
-    char current_item_id[ITEM_ID_LEN];
-    double current_highest_bid;
-    char current_bidder_username[USERNAME_LEN];
-    int time_left;
-    Participant participants_list[MAX_CLIENTS];
-    int participants_count;
-
-    UT_hash_handle hh; // uthash handle for hashing
-} AuctionRoom;
+#define PORT 5501
 
 AuctionRoom *rooms_map = NULL;  // This will be our hash table (NULL if empty)
-//==========================================================================//
+
+void generate_sample_rooms() {
+    for (int id = 101; id <= 103; id++) {
+        AuctionRoom *new_room = (AuctionRoom *)malloc(sizeof(AuctionRoom));
+        if (!new_room) {
+            perror("Failed to allocate memory for AuctionRoom");
+            exit(EXIT_FAILURE);
+        }
+
+        // Set up the room details
+        snprintf(new_room->room_id_str, ROOM_ID_LEN, "%d", id); // Room ID as string
+        snprintf(new_room->current_item_id, ITEM_ID_LEN, "item_%d", id);
+        new_room->current_highest_bid = (double)(id * 10); // Assign a bid based on ID
+        snprintf(new_room->current_bidder_username, USERNAME_LEN, "user_%d", id);
+        new_room->time_left = 60; // Default time left for auction in minutes
+        new_room->participants_count = 0; // No participants initially
+
+        // Initialize participants (example)
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            memset(new_room->participants_list[i].user_id, 0, USERNAME_LEN);
+        }
+
+        // Add the new room to the hash map
+        insert_room_uthash(new_room->room_id_str, new_room, rooms_map);
+        printf("Room %s added to rooms_map\n", new_room->room_id_str);
+    }
+}
+
+void print_rooms_map(AuctionRoom *rooms_map) {
+    AuctionRoom *room, *tmp;
+    HASH_ITER(hh, rooms_map, room, tmp) {
+        printf("Room ID in rooms_map: %s\n", room->room_id_str);
+    }
+}
 
 // Hash table to store user-to-socket mapping
 UserMap user_table[MAX_CLIENTS];
@@ -85,43 +92,6 @@ void init_user_table() {
     }
 }
 
-//=========================Real time data==================================//
-void insert_room_uthash(AuctionRoom *new_room) {
-    // `room_id` is the key we use
-    HASH_ADD_STR(rooms_map, room_id, new_room);
-}
-
-AuctionRoom* find_room_uthash(const char *room_id) {
-    AuctionRoom *room = NULL;
-    HASH_FIND_STR(rooms_map, room_id, room);
-    return room;
-}
-
-void update_bid_uthash(const char *room_id, double bid, const char *username) {
-    AuctionRoom *room = find_room_uthash(room_id);
-    if (room) {
-        room->current_highest_bid = bid;
-        strncpy(room->current_bidder_username, username, USERNAME_LEN - 1);
-    }
-}
-
-void remove_room_uthash(const char *room_id) {
-    AuctionRoom *room = find_room_uthash(room_id);
-    if (room) {
-        HASH_DEL(rooms_map, room);  // Remove it from the hash
-        free(room);                 // If allocated dynamically
-    }
-}
-
-void print_all_rooms(int sd) {
-    AuctionRoom *room, *tmp;
-    HASH_ITER(hh, rooms_map, room, tmp) {
-        printf("Room: %s, Highest Bid: %.2f\n", 
-                room->room_id, room->current_highest_bid);
-    }
-}
-//==========================================================================//
-
 int main() {
     int server_fd, client_socket, max_fd, activity, valread, sd;
     int client_sockets[MAX_CLIENTS] = {0};
@@ -129,6 +99,8 @@ int main() {
     int addrlen = sizeof(address);
     fd_set read_fds;
     init_user_table();
+    generate_sample_rooms(); // Generate sample AuctionRooms
+    print_rooms_map(rooms_map);
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -238,7 +210,7 @@ int main() {
                     client_sockets[i] = 0;
                     printf("Client disconnected\n");
                 } else if (strcmp(command, "VIEWLOBBY") == 0) {
-                    view_lobby(sd);
+                    view_lobby(sd, rooms_map);
                 } else {
                     send(sd, "Invalid command\n", 17, 0);
                 }

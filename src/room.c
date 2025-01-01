@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <time.h>
+#include "uthash.h"
 #include "room.h"
 
 #define ROOMS_FILE "data/rooms.txt"
@@ -27,12 +29,6 @@ int generate_room_id() {
     return last_id + 1; // Return the next available ID
 }
 
-// time_t get_timestamp(const char *datetime) {
-    // struct tm tm;
-    // strptime(datetime, "%Y-%m-%d %H:%M:%S", &tm); // Example format: "2024-01-01 10:30:00"
-    // return mktime(&tm);
-// }
-
 // Create a new room
 int add_room_to_database(const Room *room) {
     FILE *file = fopen(ROOMS_FILE, "a");
@@ -41,7 +37,7 @@ int add_room_to_database(const Room *room) {
         return -1;
     }
 
-    fprintf(file, "%d|%s|%s|%s|%s|%s|%d|%ld|%s|%lld|%lld|%d|%d|%lld|%lld\n",
+    fprintf(file, "%d|%s|%s|%s|%s|%s|%d|%ld|%s|%d|%d|%d|%d|%d|%d\n",
             room->room_id, room->room_name, room->room_description,
             room->room_type, room->room_password, room->category,
             room->room_size, room->start_time, room->item_name,
@@ -51,7 +47,44 @@ int add_room_to_database(const Room *room) {
     return 1; // Success
 }
 
-void view_lobby(int sd) {
+//=========================Real time data==================================//
+void insert_room_uthash(const char *room_id_str, AuctionRoom *new_room, AuctionRoom *rooms_map) {
+    // `room_id` is the key we use
+    HASH_ADD_STR(rooms_map, room_id_str, new_room);
+}
+
+AuctionRoom* find_room_uthash(const char *room_id_str, AuctionRoom *rooms_map) {
+    AuctionRoom *room = NULL;
+    HASH_FIND_STR(rooms_map, room_id_str, room);
+    return room;
+}
+
+void update_bid_uthash(const char *room_id_str, double bid, const char *username, AuctionRoom *rooms_map) {
+    AuctionRoom *room = find_room_uthash(room_id_str, rooms_map);
+    if (room) {
+        room->current_highest_bid = bid;
+        strncpy(room->current_bidder_username, username, USERNAME_LEN - 1);
+    }
+}
+
+void remove_room_uthash(const char *room_id_str, AuctionRoom *rooms_map) {
+    AuctionRoom *room = find_room_uthash(room_id_str, rooms_map);
+    if (room) {
+        HASH_DEL(rooms_map, room);  // Remove it from the hash
+        free(room);                 // If allocated dynamically
+    }
+}
+
+void print_all_rooms(int sd, AuctionRoom *rooms_map) {
+    AuctionRoom *room, *tmp;
+    HASH_ITER(hh, rooms_map, room, tmp) {
+        printf("Room: %s, Highest Bid: %d\n", 
+                room->room_id_str, room->current_highest_bid);
+    }
+}
+//==========================================================================//
+
+void view_lobby(int sd, AuctionRoom *rooms_map) {
     // Find 10 last rooms within the list
     // Declare the printing format
     // Push the the buffer
@@ -65,109 +98,52 @@ void view_lobby(int sd) {
     memset(buffer, 0, sizeof(buffer));
     char line[256];
     int room_count = 0;
-    
-    char room_id[50];
-    char name[50];
-    int type;
-    char password[50];
-    char category[50];
-    int size;
-    char start_time[50];
-    char status[50];
+
+    int room_id;
+    char room_id_str[ROOM_ID_LEN];
+    char room_name[ROOM_NAME_LEN];
+    char room_type[ROOM_TYPE_LEN];      // e.g., "public" or "private"
+    char room_password[ROOM_PASSWORD_LEN];
+    char category[ROOM_CATEGORY_LEN];
+    int room_size;
+    char start_time[ROOM_TIME_LEN];
+    char room_status[ROOM_STATUS_LEN];
+    char room_description[ROOM_DESC_LEN];
+    int current_highest_bid;
+    int time_left;
+    int participants_count;
 
     // Read up to 10 rooms from the file
     while (fgets(line, sizeof(line), file) && room_count < PRINT_ROOMS) {
         // Parse line into fields
-        sscanf(line, "%49[^:]:%49[^:]:%d:%49[^:]:%49[^:]:%d:%49[^:]:%49s",
-               room_id, name, &type, password, category, &size, start_time, status);
+        sscanf(line, "%d:%49[^:]:%49[^:]:%49[^:]:%49[^:]:%d:%49[^:]:%49s",
+               &room_id, room_name, room_type, room_password, category, &room_size, start_time, room_status);
+        sprintf(room_id_str, "%d", room_id);
 
+        AuctionRoom* real_time_room = find_room_uthash(room_id_str, rooms_map);
+        if (!real_time_room) {
+            printf("Error: Room with ID %s not found in rooms_map\n", room_id_str);
+            continue; // Skip to the next room
+        }
+        current_highest_bid = real_time_room->current_highest_bid;
+        time_left = real_time_room->time_left;
+        participants_count = real_time_room->participants_count;
+
+        printf("%d %d %d\n", current_highest_bid, time_left, participants_count);
+        
         // Append the parsed room data into the buffer
         char row[256];
-        snprintf(row, sizeof(row), "%-10s %-15s %-5d %-20s %-5d %-15s %-10s\n",
-                 room_id, name, type, category, size, start_time, status);
+        snprintf(row, sizeof(row), "%-10s %-20s %-10s %-20s %-5d/%d\t\t%-20d %-15d %-10s\n",
+                 room_id_str, room_name, room_type, category, participants_count, room_size, current_highest_bid, time_left, room_status);
         // Concatenate to buffer
         strncat(buffer, row, sizeof(buffer) - strlen(buffer) - 1);
 
         room_count++;
+        printf("Check point\n");
     }
 
     fclose(file);
 
     // Send the buffer to the client
     send(sd, buffer, strlen(buffer), 0);
-}
-
-int create_room() {
-    Room new_room;
-
-    // Generate room ID
-    new_room.room_id = generate_room_id();
-    // Input details
-    printf("Enter room name: ");
-    fgets(new_room.room_name, 100, stdin);
-    new_room.room_name[strcspn(new_room.room_name, "\n")] = 0; // Remove newline
-
-    printf("Enter room description: ");
-    fgets(new_room.room_description, 500, stdin);
-    new_room.room_description[strcspn(new_room.room_description, "\n")] = 0;
-
-    printf("Enter room type (public/private): ");
-    fgets(new_room.room_type, 10, stdin);
-    new_room.room_type[strcspn(new_room.room_type, "\n")] = 0;
-
-    if (strcmp(new_room.room_type, "private") == 0) {
-        printf("Enter password: ");
-        fgets(new_room.room_password, 50, stdin);
-        new_room.room_password[strcspn(new_room.room_password, "\n")] = 0;
-    } else {
-        strcpy(new_room.room_password, ""); // Empty password for public rooms
-    }
-
-    printf("Enter category: ");
-    fgets(new_room.category, 50, stdin);
-    new_room.category[strcspn(new_room.category, "\n")] = 0;
-
-    printf("Enter room size: ");
-    scanf("%d", &new_room.room_size);
-
-    char datetime[20];
-    printf("Enter start time (YYYY-MM-DD HH:MM:SS): ");
-    scanf("%s", datetime);
-    // new_room.start_time = get_timestamp(datetime);
-
-    printf("Enter item name: ");
-    scanf("%s", new_room.item_name);
-
-    printf("Enter starting price: ");
-    scanf("%lld", &new_room.starting_price);
-
-    printf("Enter minimum increment: ");
-    scanf("%lld", &new_room.min_increment);
-
-    printf("Enter duration (minutes): ");
-    scanf("%d", &new_room.duration);
-
-    printf("Enable Buy Now option? (1: Yes, 0: No): ");
-    scanf("%d", &new_room.buy_now_option);
-
-    if (new_room.buy_now_option) {
-        printf("Enter fixed price: ");
-        scanf("%lld", &new_room.fixed_price);
-
-        printf("Enter margin: ");
-        scanf("%lld", &new_room.margin);
-    } else {
-        new_room.fixed_price = 0;
-        new_room.margin = 0;
-    }
-
-    // Save to file
-    int result = add_room_to_database(&new_room);
-    if (result == 1) {
-        printf("Room created successfully!\n");
-    } else {
-        printf("Failed to create room.\n");
-    }
-
-    return 0;
 }

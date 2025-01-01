@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 #include "auth.h"
 
-#define PORT 5500
+#define PORT 5501
 #define IP_ADDRESS "127.0.0.1"
 
 int main() {
