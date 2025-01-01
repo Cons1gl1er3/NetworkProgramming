@@ -48,9 +48,9 @@ int add_room_to_database(const Room *room) {
 }
 
 //=========================Real time data==================================//
-void insert_room_uthash(const char *room_id_str, AuctionRoom *new_room, AuctionRoom *rooms_map) {
+void insert_room_uthash(const char *room_id_str, AuctionRoom *new_room, AuctionRoom **rooms_map) {
     // `room_id` is the key we use
-    HASH_ADD_STR(rooms_map, room_id_str, new_room);
+    HASH_ADD_STR(*rooms_map, room_id_str, new_room);
 }
 
 AuctionRoom* find_room_uthash(const char *room_id_str, AuctionRoom *rooms_map) {
@@ -85,10 +85,6 @@ void print_all_rooms(int sd, AuctionRoom *rooms_map) {
 //==========================================================================//
 
 void view_lobby(int sd, AuctionRoom *rooms_map) {
-    // Find 10 last rooms within the list
-    // Declare the printing format
-    // Push the the buffer
-    // Send back to client
     FILE *file = fopen(ROOMS_FILE, "r");
     if (!file) {
         perror("Failed to open file");
@@ -128,18 +124,15 @@ void view_lobby(int sd, AuctionRoom *rooms_map) {
         current_highest_bid = real_time_room->current_highest_bid;
         time_left = real_time_room->time_left;
         participants_count = real_time_room->participants_count;
-
-        printf("%d %d %d\n", current_highest_bid, time_left, participants_count);
         
         // Append the parsed room data into the buffer
         char row[256];
-        snprintf(row, sizeof(row), "%-10s %-20s %-10s %-20s %-5d/%d\t\t%-20d %-15d %-10s\n",
+        snprintf(row, sizeof(row), "%-10s %-20s %-10s %-20s %d/%d\t\t%-20d %-15d %-10s\n",
                  room_id_str, room_name, room_type, category, participants_count, room_size, current_highest_bid, time_left, room_status);
         // Concatenate to buffer
         strncat(buffer, row, sizeof(buffer) - strlen(buffer) - 1);
 
         room_count++;
-        printf("Check point\n");
     }
 
     fclose(file);

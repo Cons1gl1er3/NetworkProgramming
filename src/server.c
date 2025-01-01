@@ -38,15 +38,22 @@ void generate_sample_rooms() {
         }
 
         // Add the new room to the hash map
-        insert_room_uthash(new_room->room_id_str, new_room, rooms_map);
-        printf("Room %s added to rooms_map\n", new_room->room_id_str);
+        insert_room_uthash(new_room->room_id_str, new_room, &rooms_map);
+        // printf("Room %s added to rooms_map\n", new_room->room_id_str);
     }
 }
 
 void print_rooms_map(AuctionRoom *rooms_map) {
+    if (!rooms_map) {
+        printf("Error: rooms_map is empty\n");
+        return;
+    }
+    
     AuctionRoom *room, *tmp;
     HASH_ITER(hh, rooms_map, room, tmp) {
         printf("Room ID in rooms_map: %s\n", room->room_id_str);
+        printf("Current Bid: %d, Time Left: %d, Participants: %d\n",
+               room->current_highest_bid, room->time_left, room->participants_count);
     }
 }
 
@@ -100,7 +107,7 @@ int main() {
     fd_set read_fds;
     init_user_table();
     generate_sample_rooms(); // Generate sample AuctionRooms
-    print_rooms_map(rooms_map);
+    // print_rooms_map(rooms_map);
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {

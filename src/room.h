@@ -64,7 +64,7 @@ int add_room_to_database(const Room *room);
 
 void view_lobby(int sd, AuctionRoom *rooms_map);
 
-void insert_room_uthash(const char *room_id, AuctionRoom *new_room, AuctionRoom *rooms_map);
+void insert_room_uthash(const char *room_id_str, AuctionRoom *new_room, AuctionRoom **rooms_map);
 
 AuctionRoom* find_room_uthash(const char *room_id, AuctionRoom *rooms_map);
 
