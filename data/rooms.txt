@@ -1,3 +1,1 @@
-ROOM001:GameRoom:0:pass123:Sports:50:10h00:Active
-ROOM002:StudyRoom:1:secure456:Education:30:09h30:Inactive
-ROOM003:MusicRoom:0:melody789:Entertainment:20:11h00:Active
+101:GameRoom:0:pass123:0:50:10h15:0

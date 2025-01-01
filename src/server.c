@@ -148,7 +148,6 @@ int main() {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
-
     if (listen(server_fd, 3) < 0) {
         perror("Listen failed");
         close(server_fd);
