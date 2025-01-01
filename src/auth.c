@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include "user.h"
+#include "room.h"
 
 #define USERS_FILE "data/users.txt"
 
@@ -114,3 +115,4 @@ int login_function(char buffer[], int sd) {
     }
     return result; // Indicate successful processing
 }
+

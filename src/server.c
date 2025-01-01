@@ -14,7 +14,8 @@
 
 #define PORT 5501
 
-AuctionRoom *rooms_map = NULL;  // This will be our hash table (NULL if empty)
+Room list_room[15];
+AuctionRoom* rooms_map = NULL;
 
 void generate_sample_rooms() {
     for (int id = 101; id <= 103; id++) {
@@ -198,7 +199,6 @@ int main() {
 
                 char command[20];
                 sscanf(buffer, "%s", command);
-
                 if (strcmp(command, "REGISTER") == 0) {
                     register_function(buffer, sd);
                 } else if (strcmp(command, "LOGIN") == 0) {
@@ -209,8 +209,10 @@ int main() {
                         add_user(username, sd);
                     }
                 } else if (strcmp(command, "CREATEROOM") == 0) {
-                    printf("Called Create Room!\n");
-                } else if (strcmp(command, "QUIT") == 0) {
+                create_room_function(buffer,sd);
+                memset(buffer,0,sizeof(buffer));
+                }
+                else if (strcmp(command, "QUIT") == 0) {
                     printf("Client requested to disconnect.\n");
                     close(sd);
                     client_sockets[i] = 0;

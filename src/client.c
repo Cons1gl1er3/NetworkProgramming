@@ -7,9 +7,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "auth.h"
+#include "room.h"
+
 
 #define PORT 5501
 #define IP_ADDRESS "127.0.0.1"
+
 
 int main() {
     int sock = 0;
@@ -56,6 +59,8 @@ int main() {
         if (choice == 3) {
             send(sock, "QUIT", strlen("QUIT"), 0);
             printf("Exiting the client...\n");
+            close(sock);
+            exit(0);
             break;
         } else if (choice == 1 || choice == 2) {
             do {
@@ -83,12 +88,15 @@ int main() {
         }
     }
     
-    if (logged_in) {
+    
+        while (1) {
+        if (logged_in) {
         int choice;
         printf("\nWelcome to the main menu!\n");
         printf("Choose an option:\n");
         printf("1. View lobby\n");
         printf("2. Create room\n");
+        printf("3. Quit\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
         getchar(); // Consume the newline character left by scanf
@@ -98,6 +106,8 @@ int main() {
             case 1:
                 snprintf(buffer, sizeof(buffer), "VIEWLOBBY");
                 send(sock, buffer, strlen(buffer), 0);
+
+                sleep(1);
                 
                 char buffer_temp[2000];
                 memset(buffer_temp, 0, sizeof(buffer_temp));
@@ -106,20 +116,33 @@ int main() {
                 // Print server response
                 printf("%s\n", buffer_temp);
                 break;
-            case 2:
-                printf("CREATEROOM request to server\n");
+            
+            case 2: 
+                create_room(buffer,sock);
+                send(sock, buffer, strlen(buffer), 0);
+                memset(buffer, 0, sizeof(buffer));
+                read(sock, buffer, sizeof(buffer));
+                printf("%s\n", buffer);
                 break;
-            default:
-                printf("Error!\n");
+
+            case 3: 
+                send(sock, "QUIT", strlen("QUIT"), 0);
+                logged_in =0;
+                printf("Exiting the client...\n");
+                close(sock);
+                exit(0);
                 break;
+            
+            default: 
+                printf("Invalid! Please try again\n");
+                break;   
         }
 
-        while (1) {
             // Keep the client alive or process main menu commands
             sleep(1); // Pause for 1 second (adjust logic as needed)
         }
     }
-
+   
     close(sock);
     return 0;
 }

@@ -74,4 +74,8 @@ void remove_room_uthash(const char *room_id, AuctionRoom *rooms_map);
 
 void print_all_rooms(int sd, AuctionRoom *rooms_map);
 
+int create_room(char buffer[], int sock);
+
+int create_room_function(char buffer[], int sd);
+
 #endif // ROOM_H
