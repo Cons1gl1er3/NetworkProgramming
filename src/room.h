@@ -39,10 +39,12 @@ typedef struct {
 typedef struct {
     char user_id[50]; // User ID
     int socket_fd;    // Socket file descriptor
+    int waiting_for_password; // Flag: 1 if waiting for password, 0 otherwise
+    char pending_room_id[ROOM_ID_LEN]; // Room ID the client is trying to join
 } UserMap;
 
 typedef struct {
-    char user_id[USERNAME_LEN];
+    char username[USERNAME_LEN];
 } Participant;
 
 typedef struct AuctionRoom {
@@ -50,9 +52,11 @@ typedef struct AuctionRoom {
     char current_item_id[ITEM_ID_LEN];
     int current_highest_bid;
     char current_bidder_username[USERNAME_LEN];
-    int time_left;
+    int time_left;                          // Seconds
     Participant participants_list[MAX_CLIENTS];
     int participants_count;
+    int room_size;
+    char room_type[ROOM_TYPE_LEN];
 
     UT_hash_handle hh; // uthash handle for hashing
 } AuctionRoom;
@@ -72,10 +76,12 @@ void update_bid_uthash(const char *room_id, double bid, const char *username, Au
 
 void remove_room_uthash(const char *room_id, AuctionRoom *rooms_map);
 
-void print_all_rooms(int sd, AuctionRoom *rooms_map);
-
 int create_room(char buffer[], int sock);
 
-int create_room_function(char buffer[], int sd);
+int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map);
+
+void add_participant(AuctionRoom *temp, const char *username);
+
+int join_room(char buffer[], int sd, AuctionRoom *rooms_map, UserMap user_table[]);
 
 #endif // ROOM_H

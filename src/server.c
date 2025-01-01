@@ -18,7 +18,7 @@ Room list_room[15];
 AuctionRoom* rooms_map = NULL;
 
 void generate_sample_rooms() {
-    for (int id = 101; id <= 103; id++) {
+    for (int id = 101; id <= 101; id++) {
         AuctionRoom *new_room = (AuctionRoom *)malloc(sizeof(AuctionRoom));
         if (!new_room) {
             perror("Failed to allocate memory for AuctionRoom");
@@ -28,15 +28,15 @@ void generate_sample_rooms() {
         // Set up the room details
         snprintf(new_room->room_id_str, ROOM_ID_LEN, "%d", id); // Room ID as string
         snprintf(new_room->current_item_id, ITEM_ID_LEN, "item_%d", id);
-        new_room->current_highest_bid = (double)(id * 10); // Assign a bid based on ID
+        new_room->current_highest_bid = id * 10; // Assign a bid based on ID
         snprintf(new_room->current_bidder_username, USERNAME_LEN, "user_%d", id);
         new_room->time_left = 60; // Default time left for auction in minutes
         new_room->participants_count = 0; // No participants initially
 
-        // Initialize participants (example)
-        for (int i = 0; i < MAX_CLIENTS; i++) {
-            memset(new_room->participants_list[i].user_id, 0, USERNAME_LEN);
-        }
+        // // Initialize participants (example)
+        // for (int i = 0; i < MAX_CLIENTS; i++) {
+        //     memset(new_room->participants_list[i].username, 0, USERNAME_LEN);
+        // }
 
         // Add the new room to the hash map
         insert_room_uthash(new_room->room_id_str, new_room, &rooms_map);
@@ -108,7 +108,6 @@ int main() {
     fd_set read_fds;
     init_user_table();
     generate_sample_rooms(); // Generate sample AuctionRooms
-    // print_rooms_map(rooms_map);
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -209,16 +208,23 @@ int main() {
                         add_user(username, sd);
                     }
                 } else if (strcmp(command, "CREATEROOM") == 0) {
-                create_room_function(buffer,sd);
-                memset(buffer,0,sizeof(buffer));
-                }
-                else if (strcmp(command, "QUIT") == 0) {
+                    create_room_function(buffer, sd, &rooms_map);
+                    memset(buffer, 0 ,sizeof(buffer));
+                    print_rooms_map(rooms_map);
+                } else if (strcmp(command, "QUIT") == 0) {
                     printf("Client requested to disconnect.\n");
                     close(sd);
                     client_sockets[i] = 0;
                     printf("Client disconnected\n");
                 } else if (strcmp(command, "VIEWLOBBY") == 0) {
                     view_lobby(sd, rooms_map);
+                } else if (strcmp(command, "JOINROOM") == 0) {
+                    printf("%s\n", buffer);
+                    int result = join_room(buffer, sd, rooms_map, user_table);
+                } else if (strcmp(command, "PASSWORD") == 0) {
+                    // buffer: "PASSWORD room_password"
+                    char provided_password[ROOM_PASSWORD_LEN];
+                    char room_password[ROOM_PASSWORD_LEN];
                 } else {
                     send(sd, "Invalid command\n", 17, 0);
                 }

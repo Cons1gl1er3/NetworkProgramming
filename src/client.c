@@ -17,6 +17,8 @@ int main() {
     int sock = 0;
     struct sockaddr_in serv_addr;
     char buffer[1024] = {0};
+    char command[20];
+    char username[USERNAME_LEN];
 
     // Create socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -65,6 +67,7 @@ int main() {
             do {
                 // Get user authentication info
                 get_auth_info(buffer, sizeof(buffer), choice);
+                sscanf(buffer, "%s %s", command, username);
 
                 // Send to server
                 send(sock, buffer, strlen(buffer), 0);
@@ -86,59 +89,98 @@ int main() {
             printf("Invalid choice. Please try again.\n");
         }
     }
-    
-    
+ 
+    if (logged_in) {
         while (1) {
-        if (logged_in) {
-        int choice;
-        printf("\nWelcome to the main menu!\n");
-        printf("Choose an option:\n");
-        printf("1. View lobby\n");
-        printf("2. Create room\n");
-        printf("3. Quit\n");
-        printf("Enter your choice: ");
-        scanf("%d", &choice);
-        getchar(); // Consume the newline character left by scanf
-        memset(buffer, 0, sizeof(buffer));
+            int choice;
+            printf("\nWelcome to the main menu!\n");
+            printf("Choose an option:\n");
+            printf("1. View lobby\n");
+            printf("2. Create room\n");
+            printf("3. Quit\n");
+            printf("Enter your choice: ");
+            scanf("%d", &choice);
+            getchar(); // Consume the newline character left by scanf
+            memset(buffer, 0, sizeof(buffer));
 
-        switch(choice) {
-            case 1:
-                snprintf(buffer, sizeof(buffer), "VIEWLOBBY");
-                send(sock, buffer, strlen(buffer), 0);
+            switch(choice) {
+                case 1:
+                    snprintf(buffer, sizeof(buffer), "VIEWLOBBY");
+                    send(sock, buffer, strlen(buffer), 0);
 
-                sleep(1);
+                    sleep(1);
+                    
+                    char buffer_temp[2000];
+                    memset(buffer_temp, 0, sizeof(buffer_temp));
+                    read(sock, buffer_temp, sizeof(buffer_temp));
+                    
+                    // Print server response
+                    printf("%s\n", buffer_temp);
+                    break;
                 
-                char buffer_temp[2000];
-                memset(buffer_temp, 0, sizeof(buffer_temp));
-                read(sock, buffer_temp, sizeof(buffer_temp));
-                
-                // Print server response
-                printf("%s\n", buffer_temp);
-                break;
-            
-            case 2: 
-                create_room(buffer,sock);
-                send(sock, buffer, strlen(buffer), 0);
-                memset(buffer, 0, sizeof(buffer));
-                read(sock, buffer, sizeof(buffer));
-                printf("%s\n", buffer);
-                break;
+                case 2: 
+                    create_room(buffer,sock);
+                    send(sock, buffer, strlen(buffer), 0);
+                    memset(buffer, 0, sizeof(buffer));
+                    read(sock, buffer, sizeof(buffer));
+                    printf("%s\n", buffer);
+                    break;
 
-            case 3: 
-                send(sock, "QUIT", strlen("QUIT"), 0);
-                logged_in =0;
-                printf("Exiting the client...\n");
-                close(sock);
-                exit(0);
-                break;
-            
-            default: 
-                printf("Invalid! Please try again\n");
-                break;   
-        }
+                case 3: 
+                    send(sock, "QUIT", strlen("QUIT"), 0);
+                    logged_in =0;
+                    printf("Exiting the client...\n");
+                    close(sock);
+                    exit(0);
+                    break;
+                
+                default: 
+                    printf("Invalid! Please try again\n");
+                    break;   
+            }
+
+            switch(choice) {
+                case 1:
+                    printf("Enter the Room ID: ");
+                    int room_id;
+                    scanf("%d", &room_id);
+                    getchar();
+                    memset(buffer, 0, sizeof(buffer));
+                    snprintf(buffer, sizeof(buffer), "JOINROOM %s|%d", username, room_id);
+                    send(sock, buffer, strlen(buffer), 0);
+
+                    memset(buffer, 0, sizeof(buffer));
+                    read(sock, buffer, sizeof(buffer));
+                    printf("%s", buffer);
+                    if (strcmp(buffer, "Please provide the password: ")) {
+                        // Ask user to enter password here
+                        char room_password[ROOM_PASSWORD_LEN];
+                        scanf("%s", room_password);
+                        memset(buffer, 0, sizeof(buffer));
+                        snprintf(buffer, sizeof(buffer), "PASSWORD %s", room_password);
+                        send(sock, buffer, strlen(buffer), 0);
+
+                        // Receive information from server again
+                        memset(buffer, 0, sizeof(buffer));
+                        read(sock, buffer, sizeof(buffer));
+                        printf("%s\n", buffer);
+                    }
+
+                    break;
+
+                case 2:
+                    break;
+
+                case 3:
+                    break;
+
+                default:
+                    printf("Invalid! Please try again\n");
+                    break; 
+            }
 
             // Keep the client alive or process main menu commands
-            sleep(1); // Pause for 1 second (adjust logic as needed)
+            // sleep(1); // Pause for 1 second (adjust logic as needed)
         }
     }
    
