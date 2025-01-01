@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "auth.h"
+#include "room.h"
 
 #define PORT 5500
 #define IP_ADDRESS "127.0.0.1"
@@ -83,12 +84,14 @@ int main() {
         }
     }
     
-    if (logged_in) {
+        while (1) {
+        if (logged_in) {
         int choice;
         printf("\nWelcome to the main menu!\n");
         printf("Choose an option:\n");
         printf("1. View lobby\n");
         printf("2. Create room\n");
+        printf("3. Quit\n");
         scanf("%d", &choice);
         getchar(); // Consume the newline character left by scanf
         memset(buffer, 0, sizeof(buffer));
@@ -97,17 +100,33 @@ int main() {
             case 1:
                 snprintf(buffer, sizeof(buffer), "VIEWLOBBY");
                 send(sock, buffer, strlen(buffer), 0);
-                memset(buffer, 0, sizeof(buffer));
-                read(sock, buffer, sizeof(buffer));
                 
+                char buffer_temp[2000];
+                memset(buffer_temp, 0, sizeof(buffer_temp));
+                read(sock, buffer_temp, sizeof(buffer_temp));
+                
+                printf("%-10s %-15s %-5s %-20s %-5s %-15s %-10s\n",
+                 "ID", "Name", "Type", "Category", "Size", "Start Time", "Status");
                 // Print server response
-                printf("%s\n", buffer);
+                printf("%s\n", buffer_temp);
+            break;
+            case 2: 
+            create_room(buffer,sock);
+            send(sock, buffer, strlen(buffer), 0);
+            memset(buffer, 0, sizeof(buffer));
+            read(sock, buffer, sizeof(buffer));
+            printf("%s\n", buffer);
+            break;
+            case 3: 
+            send(sock, "QUIT", strlen("QUIT"), 0);
+            logged_in =0;
+            printf("Exiting the client...\n");
+            break;
+            default: printf("Invalid choice!Please choose again!\n");
+            break;
         }
-
-        while (1) {
-            // Keep the client alive or process main menu commands
-            sleep(1); // Pause for 1 second (adjust logic as needed)
         }
+        else if(logged_in ==0) break;
     }
 
     close(sock);

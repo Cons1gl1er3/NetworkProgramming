@@ -1,0 +1,3 @@
+102|phuc|dinh|public|0|weapon|4|1|gun|19|90|10|1|19|90
+103|phuc|dinh|public|0|gub|6|140721957685936|gun|19|9|10|1|1|1
+104|phuc|dinh|public|0|gun|9|140721957685936|gun|19|9|10|1|1|1

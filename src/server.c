@@ -231,7 +231,7 @@ int main() {
                         add_user(username, sd);
                     }
                 } else if (strcmp(command, "CREATEROOM") == 0) {
-                    printf("Called Create Room!\n");
+                    create_room_function(buffer,sd);
                 } else if (strcmp(command, "QUIT") == 0) {
                     printf("Client requested to disconnect.\n");
                     close(sd);

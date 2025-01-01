@@ -5,7 +5,8 @@
 #include "room.h"
 
 #define ROOMS_FILE "data/rooms.txt"
-
+#define MAX_BUFFER_SIZE 2000
+#define PRINT_ROOMS 10
 // Generate a new room ID (scan through every row in the room database to get the current max id)
 int generate_room_id() {
     FILE *file = fopen(ROOMS_FILE, "r");
@@ -50,15 +51,53 @@ int add_room_to_database(const Room *room) {
 }
 
 void view_lobby(int sd) {
-    // Find 10 last rooms within the list
+// Find 10 last rooms within the list
     // Declare the printing format
     // Push the the buffer
     // Send back to client
     FILE *file = fopen(ROOMS_FILE, "r");
+    if (!file) {
+        perror("Failed to open file");
+        return;
+    }
+    char buffer[MAX_BUFFER_SIZE];
+    memset(buffer, 0, sizeof(buffer));
+    char line[256];
+    int room_count = 0;
+    
+    char room_id[50];
+    char name[50];
+    int type;
+    char password[50];
+    char category[50];
+    int size;
+    char start_time[50];
+    char status[50];
+
+    // Read up to 10 rooms from the file
+    while (fgets(line, sizeof(line), file) && room_count < PRINT_ROOMS) {
+        // Parse line into fields
+        sscanf(line, "%49[^:]:%49[^:]:%d:%49[^:]:%49[^:]:%d:%49[^:]:%49s",
+               room_id, name, &type, password, category, &size, start_time, status);
+
+        // Append the parsed room data into the buffer
+        char row[256];
+        snprintf(row, sizeof(row), "%-10s %-15s %-5d %-20s %-5d %-15s %-10s\n",
+                 room_id, name, type, category, size, start_time, status);
+        // Concatenate to buffer
+        strncat(buffer, row, sizeof(buffer) - strlen(buffer) - 1);
+
+        room_count++;
+    }
+
+    fclose(file);
+
+    // Send the buffer to the client
+    send(sd, buffer, strlen(buffer), 0);
 
 }
 
-int create_room() {
+int create_room(char buffer[], int sock) {
     Room new_room;
 
     // Generate room ID
@@ -75,14 +114,9 @@ int create_room() {
     printf("Enter room type (public/private): ");
     fgets(new_room.room_type, 10, stdin);
     new_room.room_type[strcspn(new_room.room_type, "\n")] = 0;
-
-    if (strcmp(new_room.room_type, "private") == 0) {
-        printf("Enter password: ");
-        fgets(new_room.room_password, 50, stdin);
-        new_room.room_password[strcspn(new_room.room_password, "\n")] = 0;
-    } else {
-        strcpy(new_room.room_password, ""); // Empty password for public rooms
-    }
+    printf("Enter password(press 0 if  you want this room public): ");
+    fgets(new_room.room_password, 50, stdin);
+    new_room.room_password[strcspn(new_room.room_password, "\n")] = 0;
 
     printf("Enter category: ");
     fgets(new_room.category, 50, stdin);
@@ -91,14 +125,14 @@ int create_room() {
     printf("Enter room size: ");
     scanf("%d", &new_room.room_size);
 
-    char datetime[20];
-    printf("Enter start time (YYYY-MM-DD HH:MM:SS): ");
-    scanf("%s", datetime);
-    // new_room.start_time = get_timestamp(datetime);
+    //char datetime[20];
+    //printf("Enter start time (YYYY-MM-DD HH:MM:SS): ");
+    //scanf("%s", datetime);
+    new_room.start_time = time(NULL);
 
     printf("Enter item name: ");
     scanf("%s", new_room.item_name);
-
+    getchar();
     printf("Enter starting price: ");
     scanf("%lld", &new_room.starting_price);
 
@@ -111,24 +145,68 @@ int create_room() {
     printf("Enable Buy Now option? (1: Yes, 0: No): ");
     scanf("%d", &new_room.buy_now_option);
 
-    if (new_room.buy_now_option) {
+    if (new_room.buy_now_option==1) {
         printf("Enter fixed price: ");
         scanf("%lld", &new_room.fixed_price);
 
         printf("Enter margin: ");
         scanf("%lld", &new_room.margin);
-    } else {
+    } else if (new_room.buy_now_option==0) {
         new_room.fixed_price = 0;
         new_room.margin = 0;
     }
+    // Prepare the buffer for sending
+    memset(buffer, 0, 1024); // Clear buffer
+    sprintf(buffer, "CREATEROOM %d|%s|%s|%s|%s|%s|%d|%s|%lld|%lld|%d|%d|%lld|%lld",
+            new_room.room_id,
+            new_room.room_name,
+            new_room.room_description,
+            new_room.room_type,
+            new_room.room_password,
+            new_room.category,
+            new_room.room_size,
+            new_room.item_name,
+            new_room.starting_price,
+            new_room.min_increment,
+            new_room.duration,
+            new_room.buy_now_option,
+            new_room.fixed_price,
+            new_room.margin);
+    return 0; // Success
+}
 
-    // Save to file
+int create_room_function(char buffer[], int sd) {
+    Room new_room;
+    char datetime[20]; // You might want to keep this for actual usage
+    
+    printf("Database create room opened!\n");
+
+   
+if (sscanf(buffer, "CREATEROOM %d|%99[^|]|%499[^|]|%49[^|]|%49[^|]|%49[^|]|%d|%99[^|]|%lld|%lld|%d|%d|%lld|%lld",
+       &new_room.room_id, new_room.room_name, new_room.room_description,
+       new_room.room_type, new_room.room_password, new_room.category,
+       &new_room.room_size, new_room.item_name,&new_room.starting_price, 
+       &new_room.min_increment, &new_room.duration, &new_room.buy_now_option,
+       &new_room.fixed_price, &new_room.margin)
+ != 14) {
+    send(sd, "Invalid request format\n", 23, 0);
+    return -1; // Indicate error in processing
+}
+
+    printf("Raw buffer: '%s'\n", buffer);
+    // Parse the incoming buffer for room detail
     int result = add_room_to_database(&new_room);
+    printf("Room added\n");
+
     if (result == 1) {
-        printf("Room created successfully!\n");
+        // Send success message
+        printf("Buffer sent to %d\n", sd);
+        send(sd, "Room created successfully\n", 25, 0);
+        memset(buffer, 0,1024);
     } else {
-        printf("Failed to create room.\n");
+        // Send failure message
+        send(sd, "Failed to create room\n", 22, 0);
     }
 
-    return 0;
+    return result; // Indicate the result of the room creation attempt
 }
