@@ -8,7 +8,7 @@
 #include <arpa/inet.h>
 #include "auth.h"
 
-#define PORT 5500
+#define PORT 5501
 #define IP_ADDRESS "127.0.0.1"
 
 int main() {
@@ -103,8 +103,6 @@ int main() {
                 memset(buffer_temp, 0, sizeof(buffer_temp));
                 read(sock, buffer_temp, sizeof(buffer_temp));
                 
-                printf("%-10s %-15s %-5s %-20s %-5s %-15s %-10s\n",
-                 "ID", "Name", "Type", "Category", "Size", "Start Time", "Status");
                 // Print server response
                 printf("%s\n", buffer_temp);
                 break;

@@ -1,1 +1,3 @@
-101:GameRoom:0:pass123:0:50:10h15:0
+101:GameRoom:Public:pass123:Sports:50:10h00:Active
+102:StudyRoom:Public:secure456:Education:30:09h30:Inactive
+103:MusicRoom:Public:melody789:Entertainment:20:11h00:Active

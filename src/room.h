@@ -2,31 +2,76 @@
 #define ROOM_H
 
 #include <time.h>
+#include "uthash.h"
+
+#define USERNAME_LEN 20
+#define ROOM_ID_LEN 10
+#define ITEM_ID_LEN 10
+#define ROOM_NAME_LEN 20
+#define ROOM_DESC_LEN 50
+#define ROOM_TYPE_LEN 10
+#define ROOM_PASSWORD_LEN 20
+#define ROOM_CATEGORY_LEN 20
+#define ROOM_TIME_LEN 15
+#define ROOM_STATUS_LEN 10
+#define ITEM_NAME_LEN 20
+#define MAX_CLIENTS 100
 
 typedef struct {
     int room_id;
-    char room_name[100];
-    char room_description[500];
-    char room_type[10];      // e.g., "public" or "private"
-    char room_password[50];
-    char category[50];
+    char room_name[ROOM_NAME_LEN];
+    char room_description[ROOM_DESC_LEN];
+    char room_type[ROOM_TYPE_LEN];      // e.g., "public" or "private"
+    char room_password[ROOM_PASSWORD_LEN];
+    char category[ROOM_CATEGORY_LEN];
     int room_size;
     time_t start_time;
-    char item_name[100];
-    long long int starting_price;
-    long long int min_increment;
+    char item_name[ITEM_NAME_LEN];
+    int starting_price;
+    int min_increment;
     int duration;
     int buy_now_option;      // 1 = Yes, 0 = No
-    long long int fixed_price; // Fixed price if buy_now_option is Yes
-    long long int margin;      // Margin if buy_now_option is Yes   
+    int fixed_price; // Fixed price if buy_now_option is Yes
+    int margin;      // Margin if buy_now_option is Yes   
 } Room;
+
+//=========================Real time data==================================//
+typedef struct {
+    char user_id[50]; // User ID
+    int socket_fd;    // Socket file descriptor
+} UserMap;
+
+typedef struct {
+    char user_id[USERNAME_LEN];
+} Participant;
+
+typedef struct AuctionRoom {
+    char room_id_str[ROOM_ID_LEN];          // Key
+    char current_item_id[ITEM_ID_LEN];
+    int current_highest_bid;
+    char current_bidder_username[USERNAME_LEN];
+    int time_left;
+    Participant participants_list[MAX_CLIENTS];
+    int participants_count;
+
+    UT_hash_handle hh; // uthash handle for hashing
+} AuctionRoom;
+//==========================================================================//
 
 int generate_room_id();
 
 int add_room_to_database(const Room *room);
 
-int create_room();
+void view_lobby(int sd, AuctionRoom *rooms_map);
 
-void view_lobby(int sd);
+void insert_room_uthash(const char *room_id_str, AuctionRoom *new_room, AuctionRoom **rooms_map);
+
+AuctionRoom* find_room_uthash(const char *room_id, AuctionRoom *rooms_map);
+
+void update_bid_uthash(const char *room_id, double bid, const char *username, AuctionRoom *rooms_map);
+
+void remove_room_uthash(const char *room_id, AuctionRoom *rooms_map);
+
+void print_all_rooms(int sd, AuctionRoom *rooms_map);
 
 #endif // ROOM_H
