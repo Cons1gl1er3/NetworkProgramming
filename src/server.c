@@ -233,10 +233,9 @@ int main() {
                     }
                 } else if (strcmp(command, "CREATEROOM") == 0) {
                 create_room_function(buffer,sd);
+                memset(buffer,0,sizeof(buffer));
                 }
                 else if (strcmp(command, "QUIT") == 0) {
-                    printf("Called Create Room!\n");
-                } else if (strcmp(command, "QUIT") == 0) {
                     printf("Client requested to disconnect.\n");
                     close(sd);
                     client_sockets[i] = 0;

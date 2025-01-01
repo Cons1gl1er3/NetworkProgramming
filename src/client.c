@@ -59,6 +59,8 @@ int main() {
         if (choice == 3) {
             send(sock, "QUIT", strlen("QUIT"), 0);
             printf("Exiting the client...\n");
+            close(sock);
+            exit(0);
             break;
         } else if (choice == 1 || choice == 2) {
             do {
@@ -86,12 +88,16 @@ int main() {
         }
     }
     
-    if (logged_in) {
+    
+        while (1) {
+        if (logged_in) {
         int choice;
         printf("\nWelcome to the main menu!\n");
         printf("Choose an option:\n");
         printf("1. View lobby\n");
         printf("2. Create room\n");
+        printf("3. Quit\n");
+        printf("Enter your choice: ");
         scanf("%d", &choice);
         getchar(); // Consume the newline character left by scanf
         memset(buffer, 0, sizeof(buffer));
@@ -105,9 +111,25 @@ int main() {
                 
                 // Print server response
                 printf("%s\n", buffer);
+                case 2: 
+                create_room(buffer,sock);
+            send(sock, buffer, strlen(buffer), 0);
+            memset(buffer, 0, sizeof(buffer));
+            read(sock, buffer, sizeof(buffer));
+            printf("%s\n", buffer);
+                break;
+                case 3: 
+                send(sock, "QUIT", strlen("QUIT"), 0);
+                logged_in =0;
+                printf("Exiting the client...\n");
+                close(sock);
+                exit(0);
+                break;
+                default: 
+                printf("Invalid! Please try again\n");
+                break;   
         }
 
-        while (1) {
             // Keep the client alive or process main menu commands
             sleep(1); // Pause for 1 second (adjust logic as needed)
         }
