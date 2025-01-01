@@ -80,7 +80,7 @@ void get_auth_info(char *buffer, size_t buffer_size, int choice) {
 
     // Prepare the command
     if (choice == 1) {
-        snprintf(buffer, buffer_size, "REGISTER %s %s", username, password);
+        snprintf(buffer, buffer_size, "REGISTER:%s:%s", username, password);
     } else if (choice == 2) {
         snprintf(buffer, buffer_size, "LOGIN %s %s", username, password);
     }

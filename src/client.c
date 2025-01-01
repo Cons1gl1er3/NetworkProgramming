@@ -18,7 +18,6 @@ int main() {
     int sock = 0;
     struct sockaddr_in serv_addr;
     char buffer[1024] = {0};
-    int choice;
 
     // Create socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -46,6 +45,7 @@ int main() {
 
     int logged_in = 0;
     while (!logged_in) {
+        int choice;
         // Display menu
         printf("=====LOGIN/REGISTER=====");
         printf("\nChoose an option:\n");
@@ -85,30 +85,31 @@ int main() {
             printf("Invalid choice. Please try again.\n");
         }
     }
-
-    if(logged_in)
-    {
+    
+    if (logged_in) {
+        int choice;
+        printf("\nWelcome to the main menu!\n");
+        printf("Choose an option:\n");
+        printf("1. View lobby\n");
+        printf("2. Create room\n");
+        scanf("%d", &choice);
+        getchar(); // Consume the newline character left by scanf
         memset(buffer, 0, sizeof(buffer));
-        int menu_choice;
-        while(1){
-        printf("Welcome to the auction app!\n");
-        printf("\nChoose an option:\n");
-        printf("1. Create a room\n");
-        printf("2. Quit\n");
-        scanf("%d", &menu_choice);
-        getchar();
-        if(menu_choice==1) 
-        {
-            create_room(buffer,sock);
-            send(sock, buffer, strlen(buffer), 0);
-            memset(buffer, 0, sizeof(buffer));
-            read(sock, buffer, sizeof(buffer));
-            printf("%s\n", buffer);
+
+        switch(choice) {
+            case 1:
+                snprintf(buffer, sizeof(buffer), "VIEWLOBBY");
+                send(sock, buffer, strlen(buffer), 0);
+                memset(buffer, 0, sizeof(buffer));
+                read(sock, buffer, sizeof(buffer));
+                
+                // Print server response
+                printf("%s\n", buffer);
         }
-        else if(menu_choice ==2) {send(sock, "QUIT", strlen("QUIT"), 0);
-            printf("Exiting the client...\n");
-            break;
-        }
+
+        while (1) {
+            // Keep the client alive or process main menu commands
+            sleep(1); // Pause for 1 second (adjust logic as needed)
         }
     }
    

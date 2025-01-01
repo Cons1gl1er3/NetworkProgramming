@@ -7,19 +7,43 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include "auth.h"
 #include "room.h"
-#include <fcntl.h>
+#include "uthash.h"
 
 #define PORT 5500
 #define MAX_CLIENTS 100
+#define USERNAME_LEN 50
+#define ROOM_ID_LEN 50
+#define ITEM_ID_LEN 50
 
 Room list_room[15];
 
+//=========================Real time data==================================//
 typedef struct {
     char user_id[50]; // User ID
     int socket_fd;    // Socket file descriptor
 } UserMap;
+
+typedef struct {
+    char user_id[USERNAME_LEN];
+} Participant;
+
+typedef struct AuctionRoom {
+    char room_id[ROOM_ID_LEN];          // Key
+    char current_item_id[ITEM_ID_LEN];
+    double current_highest_bid;
+    char current_bidder_username[USERNAME_LEN];
+    int time_left;
+    Participant participants_list[MAX_CLIENTS];
+    int participants_count;
+
+    UT_hash_handle hh; // uthash handle for hashing
+} AuctionRoom;
+
+AuctionRoom *rooms_map = NULL;  // This will be our hash table (NULL if empty)
+//==========================================================================//
 
 // Hash table to store user-to-socket mapping
 UserMap user_table[MAX_CLIENTS];
@@ -62,6 +86,43 @@ void init_user_table() {
         user_table[i].socket_fd = -1;
     }
 }
+
+//=========================Real time data==================================//
+void insert_room_uthash(AuctionRoom *new_room) {
+    // `room_id` is the key we use
+    HASH_ADD_STR(rooms_map, room_id, new_room);
+}
+
+AuctionRoom* find_room_uthash(const char *room_id) {
+    AuctionRoom *room = NULL;
+    HASH_FIND_STR(rooms_map, room_id, room);
+    return room;
+}
+
+void update_bid_uthash(const char *room_id, double bid, const char *username) {
+    AuctionRoom *room = find_room_uthash(room_id);
+    if (room) {
+        room->current_highest_bid = bid;
+        strncpy(room->current_bidder_username, username, USERNAME_LEN - 1);
+    }
+}
+
+void remove_room_uthash(const char *room_id) {
+    AuctionRoom *room = find_room_uthash(room_id);
+    if (room) {
+        HASH_DEL(rooms_map, room);  // Remove it from the hash
+        free(room);                 // If allocated dynamically
+    }
+}
+
+void print_all_rooms(int sd) {
+    AuctionRoom *room, *tmp;
+    HASH_ITER(hh, rooms_map, room, tmp) {
+        printf("Room: %s, Highest Bid: %.2f\n", 
+                room->room_id, room->current_highest_bid);
+    }
+}
+//==========================================================================//
 
 int main() {
     int server_fd, client_socket, max_fd, activity, valread, sd;
@@ -174,10 +235,14 @@ int main() {
                 create_room_function(buffer,sd);
                 }
                 else if (strcmp(command, "QUIT") == 0) {
+                    printf("Called Create Room!\n");
+                } else if (strcmp(command, "QUIT") == 0) {
                     printf("Client requested to disconnect.\n");
                     close(sd);
                     client_sockets[i] = 0;
                     printf("Client disconnected\n");
+                } else if (strcmp(command, "VIEWLOBBY") == 0) {
+                    view_lobby(sd);
                 } else {
                     send(sd, "Invalid command\n", 17, 0);
                 }

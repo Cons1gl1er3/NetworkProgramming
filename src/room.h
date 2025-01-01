@@ -28,4 +28,6 @@ int add_room_to_database(const Room *room);
 int create_room(char buffer[], int sock);
 int create_room_function(char buffer[], int sd);
 
+void view_lobby(int sd);
+
 #endif // ROOM_H
