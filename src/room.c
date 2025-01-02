@@ -286,7 +286,7 @@ int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map, int* nu
             perror("Failed to open real_time.txt for appending");
         }
         // Write room data to file with | delimiter
-        char participants_str[MAX_CLIENTS * USERNAME_LEN] = " ";
+        char participants_str[MAX_CLIENTS * USERNAME_LEN] = "";
         fprintf(rt_file, "%s|%s|%d|%s|%d|%d|%d|%s|%s\n", 
                 rt_room->room_id_str, 
                 rt_room->current_item_name, 

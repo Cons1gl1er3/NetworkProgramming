@@ -13,7 +13,7 @@
 #include "room.h"
 #include "uthash.h"
 
-#define PORT 5501
+#define PORT 5500
 
 Room list_room[15];
 AuctionRoom* rooms_map = NULL;
@@ -186,12 +186,22 @@ void print_rooms_map(AuctionRoom *rooms_map) {
         printf("Error: rooms_map is empty\n");
         return;
     }
-    
+
     AuctionRoom *room, *tmp;
     HASH_ITER(hh, rooms_map, room, tmp) {
         printf("Room ID in rooms_map: %s\n", room->room_id_str);
         printf("Current Bid: %d, Time Left: %d, Participants: %d\n",
                room->current_highest_bid, room->time_left, room->participants_count);
+
+        if (room->participants_count > 0) {
+            printf("Participants:\n");
+            for (int i = 0; i < room->participants_count; ++i) {
+                printf("  - %s\n", room->participants_list[i].username);
+            }
+        } else {
+            printf("No participants in this room.\n");
+        }
+        printf("\n");  // Add a blank line for better readability between rooms
     }
 }
 
