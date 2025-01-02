@@ -12,36 +12,51 @@
 #include "room.h"
 #include "uthash.h"
 
-#define PORT 5500
-#define MAX_CLIENTS 100
-#define USERNAME_LEN 50
-#define ROOM_ID_LEN 50
-#define ITEM_ID_LEN 50
+#define PORT 5501
 
-//=========================Real time data==================================//
-typedef struct {
-    char user_id[50]; // User ID
-    int socket_fd;    // Socket file descriptor
-} UserMap;
+Room list_room[15];
+AuctionRoom* rooms_map = NULL;
 
-typedef struct {
-    char user_id[USERNAME_LEN];
-} Participant;
+void generate_sample_rooms() {
+    for (int id = 101; id <= 101; id++) {
+        AuctionRoom *new_room = (AuctionRoom *)malloc(sizeof(AuctionRoom));
+        if (!new_room) {
+            perror("Failed to allocate memory for AuctionRoom");
+            exit(EXIT_FAILURE);
+        }
 
-typedef struct AuctionRoom {
-    char room_id[ROOM_ID_LEN];          // Key
-    char current_item_id[ITEM_ID_LEN];
-    double current_highest_bid;
-    char current_bidder_username[USERNAME_LEN];
-    int time_left;
-    Participant participants_list[MAX_CLIENTS];
-    int participants_count;
+        // Set up the room details
+        snprintf(new_room->room_id_str, ROOM_ID_LEN, "%d", id); // Room ID as string
+        snprintf(new_room->current_item_id, ITEM_ID_LEN, "item_%d", id);
+        new_room->current_highest_bid = id * 10; // Assign a bid based on ID
+        snprintf(new_room->current_bidder_username, USERNAME_LEN, "user_%d", id);
+        new_room->time_left = 60; // Default time left for auction in minutes
+        new_room->participants_count = 0; // No participants initially
 
-    UT_hash_handle hh; // uthash handle for hashing
-} AuctionRoom;
+        // // Initialize participants (example)
+        // for (int i = 0; i < MAX_CLIENTS; i++) {
+        //     memset(new_room->participants_list[i].username, 0, USERNAME_LEN);
+        // }
 
-AuctionRoom *rooms_map = NULL;  // This will be our hash table (NULL if empty)
-//==========================================================================//
+        // Add the new room to the hash map
+        insert_room_uthash(new_room->room_id_str, new_room, &rooms_map);
+        // printf("Room %s added to rooms_map\n", new_room->room_id_str);
+    }
+}
+
+void print_rooms_map(AuctionRoom *rooms_map) {
+    if (!rooms_map) {
+        printf("Error: rooms_map is empty\n");
+        return;
+    }
+    
+    AuctionRoom *room, *tmp;
+    HASH_ITER(hh, rooms_map, room, tmp) {
+        printf("Room ID in rooms_map: %s\n", room->room_id_str);
+        printf("Current Bid: %d, Time Left: %d, Participants: %d\n",
+               room->current_highest_bid, room->time_left, room->participants_count);
+    }
+}
 
 // Hash table to store user-to-socket mapping
 UserMap user_table[MAX_CLIENTS];
@@ -85,43 +100,6 @@ void init_user_table() {
     }
 }
 
-//=========================Real time data==================================//
-void insert_room_uthash(AuctionRoom *new_room) {
-    // `room_id` is the key we use
-    HASH_ADD_STR(rooms_map, room_id, new_room);
-}
-
-AuctionRoom* find_room_uthash(const char *room_id) {
-    AuctionRoom *room = NULL;
-    HASH_FIND_STR(rooms_map, room_id, room);
-    return room;
-}
-
-void update_bid_uthash(const char *room_id, double bid, const char *username) {
-    AuctionRoom *room = find_room_uthash(room_id);
-    if (room) {
-        room->current_highest_bid = bid;
-        strncpy(room->current_bidder_username, username, USERNAME_LEN - 1);
-    }
-}
-
-void remove_room_uthash(const char *room_id) {
-    AuctionRoom *room = find_room_uthash(room_id);
-    if (room) {
-        HASH_DEL(rooms_map, room);  // Remove it from the hash
-        free(room);                 // If allocated dynamically
-    }
-}
-
-void print_all_rooms(int sd) {
-    AuctionRoom *room, *tmp;
-    HASH_ITER(hh, rooms_map, room, tmp) {
-        printf("Room: %s, Highest Bid: %.2f\n", 
-                room->room_id, room->current_highest_bid);
-    }
-}
-//==========================================================================//
-
 int main() {
     int server_fd, client_socket, max_fd, activity, valread, sd;
     int client_sockets[MAX_CLIENTS] = {0};
@@ -129,6 +107,7 @@ int main() {
     int addrlen = sizeof(address);
     fd_set read_fds;
     init_user_table();
+    generate_sample_rooms(); // Generate sample AuctionRooms
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -148,7 +127,6 @@ int main() {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
-
     if (listen(server_fd, 3) < 0) {
         perror("Listen failed");
         close(server_fd);
@@ -220,7 +198,6 @@ int main() {
 
                 char command[20];
                 sscanf(buffer, "%s", command);
-
                 if (strcmp(command, "REGISTER") == 0) {
                     register_function(buffer, sd);
                 } else if (strcmp(command, "LOGIN") == 0) {
@@ -231,14 +208,23 @@ int main() {
                         add_user(username, sd);
                     }
                 } else if (strcmp(command, "CREATEROOM") == 0) {
-                    create_room_function(buffer,sd);
+                    create_room_function(buffer, sd, &rooms_map);
+                    memset(buffer, 0 ,sizeof(buffer));
+                    print_rooms_map(rooms_map);
                 } else if (strcmp(command, "QUIT") == 0) {
                     printf("Client requested to disconnect.\n");
                     close(sd);
                     client_sockets[i] = 0;
                     printf("Client disconnected\n");
                 } else if (strcmp(command, "VIEWLOBBY") == 0) {
-                    view_lobby(sd);
+                    view_lobby(sd, rooms_map);
+                } else if (strcmp(command, "JOINROOM") == 0) {
+                    printf("%s\n", buffer);
+                    int result = join_room(buffer, sd, rooms_map, user_table);
+                } else if (strcmp(command, "PASSWORD") == 0) {
+                    // buffer: "PASSWORD room_password"
+                    char provided_password[ROOM_PASSWORD_LEN];
+                    char room_password[ROOM_PASSWORD_LEN];
                 } else {
                     send(sd, "Invalid command\n", 17, 0);
                 }
