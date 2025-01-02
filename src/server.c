@@ -385,6 +385,14 @@ int main() {
                     // buffer: "PASSWORD room_password"
                     char provided_password[ROOM_PASSWORD_LEN];
                     char room_password[ROOM_PASSWORD_LEN];
+                    view_lobby(sd, rooms_map);
+                } else if (strcmp(command, "JOINROOM") == 0) {
+                    printf("%s\n", buffer);
+                    int result = join_room(buffer, sd, rooms_map, user_table);
+                } else if (strcmp(command, "PASSWORD") == 0) {
+                    // buffer: "PASSWORD room_password"
+                    char provided_password[ROOM_PASSWORD_LEN];
+                    char room_password[ROOM_PASSWORD_LEN];
                 } else {
                     send(sd, "Invalid command\n", 17, 0);
                 }

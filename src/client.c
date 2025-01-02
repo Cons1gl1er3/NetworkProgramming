@@ -8,7 +8,9 @@
 #include <arpa/inet.h>
 #include "auth.h"
 #include "room.h"
+#include "room.h"
 
+#define PORT 5501
 #define PORT 5501
 #define IP_ADDRESS "127.0.0.1"
 
@@ -132,6 +134,7 @@ int main() {
             do {
                 // Get user authentication info
                 get_auth_info(buffer, sizeof(buffer), choice);
+                sscanf(buffer, "%s %s", command, username);
                 sscanf(buffer, "%s %s", command, username);
 
                 // Send to server
