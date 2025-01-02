@@ -17,6 +17,7 @@
 #define ITEM_NAME_LEN 20
 #define MAX_CLIENTS 100
 #define REAL_TIME_FILE "data/real_time.txt"
+#define ROOMS_FILE "data/rooms.txt"
 
 typedef struct {
     int room_id;
@@ -36,7 +37,6 @@ typedef struct {
     int margin;      // Margin if buy_now_option is Yes   
 } Room;
 
-//=========================Real time data==================================//
 typedef struct {
     char user_id[50]; // User ID
     int socket_fd;    // Socket file descriptor
@@ -44,6 +44,7 @@ typedef struct {
     char pending_room_id[ROOM_ID_LEN]; // Room ID the client is trying to join
 } UserMap;
 
+//=========================Real time data==================================//
 typedef struct {
     char username[USERNAME_LEN];
 } Participant;

@@ -256,6 +256,113 @@ void handle_signal(int signal) {
     }
 }
 
+int handle_place_bid(const char *buffer, int sd, AuctionRoom *rooms_map, UserMap user_table[]) {
+    char room_id_str[ROOM_ID_LEN];
+    int bid;
+    char user_id[USERNAME_LEN] = {0};
+    
+    // Parse the incoming "PLACEBID room_id bid" request
+    if (sscanf(buffer, "PLACEBID %s %d", room_id_str, &bid) != 2) {
+        send(sd, "Bid request failed!\n", 20, 0);
+        return -1; // Indicate error in parsing
+    }
+
+    // Find the user in the user_table
+    int user_found = 0;
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        if (user_table[i].socket_fd == sd) {
+            strncpy(user_id, user_table[i].user_id, sizeof(user_id) - 1);
+            user_id[sizeof(user_id) - 1] = '\0';
+            user_found = 1;
+            break;
+        }
+    }
+
+    if (!user_found) {
+        // send(sd, "User not found in the user table\n", 32, 0);
+        return -2; // User not found
+    }
+
+    // Find the room in the rooms_map
+    AuctionRoom *room = find_room_uthash(room_id_str, rooms_map);
+    if (!room) {
+        send(sd, "Bid request failed!\n", 20, 0);
+        return -3; // Room not found
+    }
+
+    // Check if the bid is valid
+    if (bid <= room->current_highest_bid) {
+        send(sd, "Bid request failed!\n", 20, 0);
+        return -4; // Bid is not higher than the current bid
+    }
+
+    // Update the room's highest bid and bidder
+    room->current_highest_bid = bid;
+    strncpy(room->current_bidder_username, user_id, USERNAME_LEN - 1);
+    room->current_bidder_username[USERNAME_LEN - 1] = '\0';
+
+    // Send success message to the client
+    send(sd, "Bid placed successfully\n", 24, 0);
+    printf("User %s placed a bid of %d on room %s\n", user_id, bid, room_id_str);
+
+    return 1; // Indicate success
+}
+
+void handle_fetch_request(const char *room_id_str, int sd) {
+    FILE *file = fopen(ROOMS_FILE, "r");
+    if (!file) {
+        perror("Failed to open rooms.txt");
+        send(sd, "FETCHRESPONSE Room not found|\n", 30, 0); // Send error response to client
+        return;
+    }
+
+    char line[1024];
+    int found = 0;
+
+    char room_id[ROOM_ID_LEN];
+    char room_name[ROOM_NAME_LEN];
+    char room_description[ROOM_DESC_LEN];
+    char room_type[ROOM_TYPE_LEN];
+    char room_password[ROOM_PASSWORD_LEN];
+    char category[ROOM_CATEGORY_LEN];
+    int room_size;
+    char start_time[ROOM_TIME_LEN];
+    char item_name[ITEM_NAME_LEN];
+    int starting_price;
+    int min_increment;
+    int duration;
+    int buy_now_option;
+    int fixed_price;
+    int margin;
+
+    while (fgets(line, sizeof(line), file)) {
+        sscanf(line, "%[^|]", room_id); // Extract the room_id from the line
+
+        if (strcmp(room_id, room_id_str) == 0) {
+            // Parse the line to extract required fields
+            sscanf(line, "%[^|]|%[^|]|%[^|]|%[^|]|%[^|]|%[^|]|%d|%[^|]|%[^|]|%d|%d|%d|%d|%d|%d",
+               room_id, room_name, room_description, room_type, room_password,
+               category, &room_size, start_time, item_name, &starting_price, &min_increment,
+               &duration, &buy_now_option, &fixed_price, &margin);
+            found = 1;
+            break;
+        }
+    }
+
+    fclose(file);
+
+    if (found) {
+        // Prepare and send the response
+        char response[256];
+        snprintf(response, sizeof(response), "%s|%s|%d|%d|%d|%d|",
+                 room_name, item_name, min_increment, buy_now_option, fixed_price, margin);
+        send(sd, response, strlen(response), 0);
+    } else {
+        // Room not found in the file
+        // send(sd, "FETCHRESPONSE Room not found|\n", 30, 0);
+    }
+}
+
 int main() {
     int server_fd, client_socket, max_fd, activity, valread, sd;
     int client_sockets[MAX_CLIENTS] = {0};
@@ -385,6 +492,11 @@ int main() {
                     // buffer: "PASSWORD room_password"
                     char provided_password[ROOM_PASSWORD_LEN];
                     char room_password[ROOM_PASSWORD_LEN];
+                } else if (strcmp(command, "FETCH") == 0) {
+                    // FETCH room_id
+                    char room_id_str_temp[ROOM_ID_LEN];
+                    sscanf(buffer, "FETCH %9s", room_id_str_temp); // Extract room_id from the client's request
+                    handle_fetch_request(room_id_str_temp, sd);   // Call the fetch handler
                 } else {
                     send(sd, "Invalid command\n", 17, 0);
                 }

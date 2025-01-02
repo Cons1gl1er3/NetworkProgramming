@@ -6,7 +6,6 @@
 #include "uthash.h"
 #include "room.h"
 
-#define ROOMS_FILE "data/rooms.txt"
 #define MAX_BUFFER_SIZE 2000
 #define PRINT_ROOMS 10
 

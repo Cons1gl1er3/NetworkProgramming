@@ -91,33 +91,24 @@ int main() {
     }
  
     if (logged_in) {
+        int repeat = 0; // Đây mới là đúng
+        int joined = 0; // Đây mới là đúng
+        int fetch = 0; // Đây mới là đúng
+        
+        // basic info
+        int room_id; char room_name[ROOM_NAME_LEN];
+        char item_name[ITEM_NAME_LEN]; int min_increment; int buy_now_option;
+        int fixed_price; int margin;
+
+        // real time data
+        int current_highest_bid; int time_left; int participants_count;
+        
         while (1) {
-            int repeat = 0;
-            int joined = 0;
-            int fetch = 0;
-            // basic info
-            int room_id; char room_name[ROOM_NAME_LEN];
-            char item_name[ITEM_NAME_LEN], int min_increment; int buy_now_option;
-            int fixed_price; int margin;
-
-            // real time data
-            int current_highest_bid; int time_left; int participants_count;
-
-            int choice;
-            printf("\nWelcome to the main menu!\n");
-            printf("Choose an option:\n");
-            printf("1. View lobby\n");
-            printf("2. Create room\n");
-            printf("3. Quit\n");
-            printf("Enter your choice: ");
-            scanf("%d", &choice);
-            getchar(); // Consume the newline character left by scanf
-            memset(buffer, 0, sizeof(buffer));
-
             while (joined == 1) {
                 if (fetch==0) { // Send request for basic information from server. Only send this once
                     memset(buffer, 0, sizeof(buffer));
                     snprintf(buffer, sizeof(buffer), "FETCH %d", room_id);
+                    send(sock, buffer, strlen(buffer), 0);
 
                     // receive basic information from server
                     // room_name|item_name|min_increment|buy_now_option|fixed_price|margin|
@@ -144,8 +135,28 @@ int main() {
                     token = strtok(NULL, "|");
                     margin = atoi(token);
                 }
-                
+                printf("Fetch done!\n");
+                printf("%s %s %d %d %d %d\n", room_name, item_name, min_increment, buy_now_option, fixed_price, margin);
+                while (1) {
+                    printf("Enter: ");
+                    int bid;
+                    scanf("%d", &bid);
+                    memset(buffer, 0, sizeof(buffer));
+                    sprintf(buffer, "PLACEBID %d %d", room_id, bid);
+                }
             }
+
+            int choice;
+            printf("\nWelcome to the main menu!\n");
+            printf("Choose an option:\n");
+            printf("1. View lobby\n");
+            printf("2. Create room\n");
+            printf("3. Quit\n");
+            printf("Enter your choice: ");
+            scanf("%d", &choice);
+            getchar(); // Consume the newline character left by scanf
+            memset(buffer, 0, sizeof(buffer));
+            printf("%d\n", joined);
 
             switch(choice) {
                 case 1:
@@ -183,11 +194,11 @@ int main() {
                     printf("Invalid! Please try again\n");
                     break;   
             }
+
             if (repeat==0) {
                 switch(choice) {
                     case 1:
                         printf("Enter the Room ID: ");
-                        int room_id;
                         scanf("%d", &room_id);
                         getchar();
                         memset(buffer, 0, sizeof(buffer));
@@ -197,6 +208,11 @@ int main() {
                         memset(buffer, 0, sizeof(buffer));
                         read(sock, buffer, sizeof(buffer));
                         printf("%s", buffer);
+
+                        if (strcmp(buffer, "Join room successfully!\n") == 0) {
+                            joined = 1;
+                        }
+
                         if (strcmp(buffer, "Please provide the password: ") == 0) {
                             // Ask user to enter password here
                             char room_password[ROOM_PASSWORD_LEN];
@@ -210,11 +226,6 @@ int main() {
                             read(sock, buffer, sizeof(buffer));
                             printf("%s\n", buffer);
                         }
-
-                        else if (strcmp(buffer, "Join room successfully!\n") == 0) {
-                            joined = 1;
-                        }
-
                         break;
 
                     case 2:

@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <time.h>
 #include "uthash.h"
+#include "room.h"
 
 // ... (other definitions from room.h)
 
