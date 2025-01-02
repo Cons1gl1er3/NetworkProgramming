@@ -1,1 +1,3 @@
-102|Room1|hello|public|0|Streetwear|10|7953764261206843766|item1|100|10|50|0|0|0103|room2|this is the description|private|123|Others|30|7953764261206843766|car|10000|100|10|0|0|0
+102|room1|no|public|0|car|10|0|lambo|100|10|10|0|0|0
+103|room2|no|public|0|books|10|0|book|100|10|10|0|0|0
+104|room3|no|public|0|hehe|10|0|haha|1000|10|10|0|0|0

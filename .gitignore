@@ -1,0 +1,8 @@
+# Ignore compiled files
+client
+server
+
+# Ignore temporary or cache files
+*.o
+*.out
+*.log
