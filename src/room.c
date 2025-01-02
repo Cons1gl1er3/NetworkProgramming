@@ -141,8 +141,11 @@ void view_lobby(int sd, AuctionRoom *rooms_map) {
 
     fclose(file);
 
-    // Send the buffer to the client
-    send(sd, buffer, strlen(buffer), 0);
+    if (room_count == 0 || strlen(buffer) == 0) {
+        send(sd, "No rooms available\n", 19, 0);  // Send if no rooms are found in the file or buffer is empty
+    } else {
+        send(sd, buffer, strlen(buffer), 0);  // Send the list of rooms
+    }
 }
 
 int create_room(char buffer[], int sock) {
@@ -223,14 +226,11 @@ int create_room(char buffer[], int sock) {
 int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map) {
     Room new_room;
     char datetime[20]; // You might want to keep this for actual usage
-    
-    // printf("Database create room opened!\n");
-    // printf("Raw buffer: '%s'\n", buffer);
   
     if (sscanf(buffer, "CREATEROOM %d|%49[^|]|%49[^|]|%49[^|]|%49[^|]|%49[^|]|%d|%49[^|]|%d|%d|%d|%d|%d|%d",
         &new_room.room_id, new_room.room_name, new_room.room_description,
         new_room.room_type, new_room.room_password, new_room.category,
-        &new_room.room_size, new_room.item_name,&new_room.starting_price, 
+        &new_room.room_size, new_room.item_name, &new_room.starting_price, 
         &new_room.min_increment, &new_room.duration, &new_room.buy_now_option,
         &new_room.fixed_price, &new_room.margin)
     != 14) {
@@ -268,9 +268,9 @@ int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map) {
 
         // Set up the room details
         snprintf(rt_room->room_id_str, ROOM_ID_LEN, "%d", new_room.room_id); // Room ID as string
-        // snprintf(rt_room->current_item_id, ITEM_ID_LEN, "item_%d", id);
+        snprintf(rt_room->current_item_name, ITEM_NAME_LEN, "%s", new_room.item_name);
         rt_room->current_highest_bid = 0; // current_highest_bid=0 at room creation
-        // Leave current bidder to null
+        rt_room->current_bidder_username[0] = '\0';  // Set the first character to null, making it an empty string
         rt_room->time_left = new_room.duration; // Default time left to duration
         rt_room->participants_count = 0; // No participants initially
         rt_room->room_size = new_room.room_size;
@@ -279,6 +279,23 @@ int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map) {
 
         // Add the new room to the hash map
         insert_room_uthash(rt_room->room_id_str, rt_room, rooms_map);
+
+        // Append the new room to real_time.txt
+        FILE *rt_file = fopen(REAL_TIME_FILE, "a");
+        if (rt_file == NULL) {
+            perror("Failed to open real_time.txt for appending");
+        }
+        // Write room data to file with | delimiter
+        fprintf(rt_file, "%s|%s|%d|%s|%d|%d!%s\n", 
+                rt_room->room_id_str, 
+                rt_room->current_item_name, 
+                rt_room->current_highest_bid, 
+                rt_room->current_bidder_username, 
+                rt_room->time_left, 
+                rt_room->participants_count, 
+                rt_room->room_type);
+
+        fclose(rt_file);
     }
     // ============================Vanh code=================================== //
 

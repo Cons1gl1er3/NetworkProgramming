@@ -9,7 +9,7 @@
 #include "auth.h"
 #include "room.h"
 
-#define PORT 5501
+#define PORT 5500
 #define IP_ADDRESS "127.0.0.1"
 
 
@@ -92,6 +92,7 @@ int main() {
  
     if (logged_in) {
         while (1) {
+            int repeat = 0;
             int choice;
             printf("\nWelcome to the main menu!\n");
             printf("Choose an option:\n");
@@ -113,6 +114,7 @@ int main() {
                     char buffer_temp[2000];
                     memset(buffer_temp, 0, sizeof(buffer_temp));
                     read(sock, buffer_temp, sizeof(buffer_temp));
+                    if (strcmp(buffer_temp, "No rooms available\n") == 0) repeat = 1; // don't run the second loop
                     
                     // Print server response
                     printf("%s\n", buffer_temp);
@@ -138,45 +140,46 @@ int main() {
                     printf("Invalid! Please try again\n");
                     break;   
             }
-
-            switch(choice) {
-                case 1:
-                    printf("Enter the Room ID: ");
-                    int room_id;
-                    scanf("%d", &room_id);
-                    getchar();
-                    memset(buffer, 0, sizeof(buffer));
-                    snprintf(buffer, sizeof(buffer), "JOINROOM %s|%d", username, room_id);
-                    send(sock, buffer, strlen(buffer), 0);
-
-                    memset(buffer, 0, sizeof(buffer));
-                    read(sock, buffer, sizeof(buffer));
-                    printf("%s", buffer);
-                    if (strcmp(buffer, "Please provide the password: ")) {
-                        // Ask user to enter password here
-                        char room_password[ROOM_PASSWORD_LEN];
-                        scanf("%s", room_password);
+            if (repeat==0) {
+                switch(choice) {
+                    case 1:
+                        printf("Enter the Room ID: ");
+                        int room_id;
+                        scanf("%d", &room_id);
+                        getchar();
                         memset(buffer, 0, sizeof(buffer));
-                        snprintf(buffer, sizeof(buffer), "PASSWORD %s", room_password);
+                        snprintf(buffer, sizeof(buffer), "JOINROOM %s|%d", username, room_id);
                         send(sock, buffer, strlen(buffer), 0);
 
-                        // Receive information from server again
                         memset(buffer, 0, sizeof(buffer));
                         read(sock, buffer, sizeof(buffer));
-                        printf("%s\n", buffer);
-                    }
+                        printf("%s", buffer);
+                        if (strcmp(buffer, "Please provide the password: ")) {
+                            // Ask user to enter password here
+                            char room_password[ROOM_PASSWORD_LEN];
+                            scanf("%s", room_password);
+                            memset(buffer, 0, sizeof(buffer));
+                            snprintf(buffer, sizeof(buffer), "PASSWORD %s", room_password);
+                            send(sock, buffer, strlen(buffer), 0);
 
-                    break;
+                            // Receive information from server again
+                            memset(buffer, 0, sizeof(buffer));
+                            read(sock, buffer, sizeof(buffer));
+                            printf("%s\n", buffer);
+                        }
 
-                case 2:
-                    break;
+                        break;
 
-                case 3:
-                    break;
+                    case 2:
+                        break;
 
-                default:
-                    printf("Invalid! Please try again\n");
-                    break; 
+                    case 3:
+                        break;
+
+                    default:
+                        printf("Invalid! Please try again\n");
+                        break; 
+                }
             }
 
             // Keep the client alive or process main menu commands

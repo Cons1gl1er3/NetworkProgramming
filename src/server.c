@@ -12,7 +12,7 @@
 #include "room.h"
 #include "uthash.h"
 
-#define PORT 5501
+#define PORT 5500
 
 Room list_room[15];
 AuctionRoom* rooms_map = NULL;
@@ -27,21 +27,105 @@ void generate_sample_rooms() {
 
         // Set up the room details
         snprintf(new_room->room_id_str, ROOM_ID_LEN, "%d", id); // Room ID as string
-        snprintf(new_room->current_item_id, ITEM_ID_LEN, "item_%d", id);
+        snprintf(new_room->current_item_name, ITEM_ID_LEN, "item_%d", id);
         new_room->current_highest_bid = id * 10; // Assign a bid based on ID
         snprintf(new_room->current_bidder_username, USERNAME_LEN, "user_%d", id);
         new_room->time_left = 60; // Default time left for auction in minutes
         new_room->participants_count = 0; // No participants initially
 
-        // // Initialize participants (example)
-        // for (int i = 0; i < MAX_CLIENTS; i++) {
-        //     memset(new_room->participants_list[i].username, 0, USERNAME_LEN);
-        // }
-
         // Add the new room to the hash map
         insert_room_uthash(new_room->room_id_str, new_room, &rooms_map);
         // printf("Room %s added to rooms_map\n", new_room->room_id_str);
     }
+}
+
+void initializeRooms(AuctionRoom *rooms_map, int *num_rooms) {
+    FILE *file = fopen(REAL_TIME_FILE, "r");
+    if (file == NULL) {
+        printf("No existing room data found, starting fresh.\n");
+        return;  // No data to load
+    }
+
+    char line[2000];  // Buffer to read lines from the file
+    *num_rooms = 0;
+
+    while (fgets(line, sizeof(line), file)) {
+        AuctionRoom *new_room = (AuctionRoom *)malloc(sizeof(AuctionRoom));
+        if (!new_room) {
+            perror("Failed to allocate memory for AuctionRoom");
+            exit(EXIT_FAILURE);
+        }
+        char participants_str[MAX_CLIENTS * USERNAME_LEN];
+        
+        // Use sscanf to parse the line
+        int parsed_values = sscanf(line, "%[^|]|%[^|]|%d|%[^|]|%d|%d|%d|%[^|]|%[^|]",
+                                    new_room->room_id_str, 
+                                    new_room->current_item_name, 
+                                    &new_room->current_highest_bid, 
+                                    new_room->current_bidder_username, 
+                                    &new_room->time_left, 
+                                    &new_room->participants_count,
+                                    &new_room->room_size,
+                                    new_room->room_type,
+                                    participants_str);
+
+        // If we successfully parsed 8 values, add the room
+        if (parsed_values == 9) {
+            char *username = strtok(participants_str, ":");
+            int i = 0;
+            while (username != NULL && i < new_room->participants_count) {
+                strncpy(new_room->participants_list[i].username, username, USERNAME_LEN - 1);
+                new_room->participants_list[i].username[USERNAME_LEN - 1] = '\0';  // Null-terminate
+                username = strtok(NULL, ":");
+                i++;
+            }
+            // Save the room in the rooms array
+            insert_room_uthash(new_room->room_id_str, new_room, &rooms_map);
+            (*num_rooms)++;
+        } else {
+            printf("Failed to parse room data: %s", line);
+            free(new_room);  // Free memory if parsing fails
+        }
+    }
+
+    fclose(file);
+}
+
+void saveRoomsToFile(AuctionRoom *rooms_map, int num_rooms) {
+    FILE *file = fopen(REAL_TIME_FILE, "w");
+    if (file == NULL) {
+        perror("Failed to open real_time.txt for writing");
+        return;
+    }
+
+    for (int i = 0; i < num_rooms; ++i) {
+        AuctionRoom *room = &rooms_map[i];
+
+        if (!room) break;
+        
+        char participants_str[MAX_CLIENTS * USERNAME_LEN] = "";
+        for (int j = 0; j < room->participants_count; ++j) {
+            if (j > 0) {
+                strcat(participants_str, ":");  // Add colon separator
+            }
+            strcat(participants_str, room->participants_list[j].username);
+        }
+        
+        // Iterate over the rooms_map and write each room's data to the file
+        fprintf(file, "%s|%s|%d|%s|%d|%d|%d|%s|%s\n", 
+                room->room_id_str, 
+                room->current_item_name, 
+                room->current_highest_bid, 
+                room->current_bidder_username, 
+                room->time_left, 
+                room->participants_count,
+                room->room_size, 
+                room->room_type,
+                participants_str);
+    }
+
+
+    fclose(file);
 }
 
 void print_rooms_map(AuctionRoom *rooms_map) {
@@ -103,11 +187,13 @@ void init_user_table() {
 int main() {
     int server_fd, client_socket, max_fd, activity, valread, sd;
     int client_sockets[MAX_CLIENTS] = {0};
+    int num_rooms = 0;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
     fd_set read_fds;
     init_user_table();
-    generate_sample_rooms(); // Generate sample AuctionRooms
+    // generate_sample_rooms(); // Generate sample AuctionRooms
+    initializeRooms(rooms_map, &num_rooms);
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -198,6 +284,7 @@ int main() {
 
                 char command[20];
                 sscanf(buffer, "%s", command);
+                print_rooms_map(rooms_map);
                 if (strcmp(command, "REGISTER") == 0) {
                     register_function(buffer, sd);
                 } else if (strcmp(command, "LOGIN") == 0) {
@@ -210,7 +297,7 @@ int main() {
                 } else if (strcmp(command, "CREATEROOM") == 0) {
                     create_room_function(buffer, sd, &rooms_map);
                     memset(buffer, 0 ,sizeof(buffer));
-                    print_rooms_map(rooms_map);
+                    // print_rooms_map(rooms_map);
                 } else if (strcmp(command, "QUIT") == 0) {
                     printf("Client requested to disconnect.\n");
                     close(sd);
@@ -233,6 +320,8 @@ int main() {
     
     }
 
+    saveRoomsToFile(rooms_map, num_rooms);  // Save room data before server shutdown
     close(server_fd);
+    printf("Server shutting down.\n");
     return 0;
 }

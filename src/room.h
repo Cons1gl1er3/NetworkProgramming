@@ -16,6 +16,7 @@
 #define ROOM_STATUS_LEN 10
 #define ITEM_NAME_LEN 20
 #define MAX_CLIENTS 100
+#define REAL_TIME_FILE "data/real_time.txt"
 
 typedef struct {
     int room_id;
@@ -49,7 +50,7 @@ typedef struct {
 
 typedef struct AuctionRoom {
     char room_id_str[ROOM_ID_LEN];          // Key
-    char current_item_id[ITEM_ID_LEN];
+    char current_item_name[ITEM_NAME_LEN];
     int current_highest_bid;
     char current_bidder_username[USERNAME_LEN];
     int time_left;                          // Seconds
