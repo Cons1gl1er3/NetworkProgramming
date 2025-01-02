@@ -270,7 +270,7 @@ int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map, int* nu
         snprintf(rt_room->room_id_str, ROOM_ID_LEN, "%d", new_room.room_id); // Room ID as string
         snprintf(rt_room->current_item_name, ITEM_NAME_LEN, "%s", new_room.item_name);
         rt_room->current_highest_bid = 0; // current_highest_bid=0 at room creation
-        rt_room->current_bidder_username[0] = '\0';  // Set the first character to null, making it an empty string
+        strcpy(rt_room->current_bidder_username, " "); 
         rt_room->time_left = new_room.duration; // Default time left to duration
         rt_room->participants_count = 0; // No participants initially
         rt_room->room_size = new_room.room_size;
@@ -286,7 +286,7 @@ int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map, int* nu
             perror("Failed to open real_time.txt for appending");
         }
         // Write room data to file with | delimiter
-        char participants_str[MAX_CLIENTS * USERNAME_LEN] = "";
+        char participants_str[MAX_CLIENTS * USERNAME_LEN] = " ";
         fprintf(rt_file, "%s|%s|%d|%s|%d|%d|%d|%s|%s\n", 
                 rt_room->room_id_str, 
                 rt_room->current_item_name, 

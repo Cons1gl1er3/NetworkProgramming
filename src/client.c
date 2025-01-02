@@ -9,7 +9,7 @@
 #include "auth.h"
 #include "room.h"
 
-#define PORT 5500
+#define PORT 5501
 #define IP_ADDRESS "127.0.0.1"
 
 

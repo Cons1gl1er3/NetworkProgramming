@@ -13,7 +13,7 @@
 #include "room.h"
 #include "uthash.h"
 
-#define PORT 5500
+#define PORT 5501
 
 Room list_room[15];
 AuctionRoom* rooms_map = NULL;
@@ -148,18 +148,15 @@ void initializeRooms(AuctionRoom **rooms_map, int *num_rooms) {
     fclose(file);
 }
 
-void saveRoomsToFile(AuctionRoom *rooms_map, int num_rooms) {
+void saveRoomsToFile(AuctionRoom *rooms_map) {
     FILE *file = fopen(REAL_TIME_FILE, "w");
     if (file == NULL) {
         perror("Failed to open real_time.txt for writing");
         return;
     }
 
-    for (int i = 0; i < num_rooms; ++i) {
-        AuctionRoom *room = &rooms_map[i];
-
-        if (!room) break;
-        
+    AuctionRoom *room, *tmp;
+    HASH_ITER(hh, rooms_map, room, tmp) {  // Use HASH_ITER to iterate over the hash table
         char participants_str[MAX_CLIENTS * USERNAME_LEN] = "";
         for (int j = 0; j < room->participants_count; ++j) {
             if (j > 0) {
@@ -167,11 +164,9 @@ void saveRoomsToFile(AuctionRoom *rooms_map, int num_rooms) {
             }
             strcat(participants_str, room->participants_list[j].username);
         }
-        strcat(participants_str, ":"); 
-        printf("%s", participants_str);
-        
-        // Iterate over the rooms_map and write each room's data to the file
-        fprintf(file, "%s|%s|%d|%s|%d|%d|%d|%s|%s\n", 
+
+        // Write each room's data to the file
+        fprintf(file, "%s|%s|%d|%s|%d|%d|%d|%s|%s:\n", 
                 room->room_id_str, 
                 room->current_item_name, 
                 room->current_highest_bid, 
@@ -182,7 +177,6 @@ void saveRoomsToFile(AuctionRoom *rooms_map, int num_rooms) {
                 room->room_type,
                 participants_str);
     }
-
 
     fclose(file);
 }
@@ -389,7 +383,7 @@ int main() {
     
     }
 
-    saveRoomsToFile(rooms_map, num_rooms);  // Save room data before server shutdown
+    saveRoomsToFile(rooms_map);  // Save room data before server shutdown
     close(server_fd);
     printf("Server shutting down.\n");
     return 0;
