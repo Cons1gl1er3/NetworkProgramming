@@ -13,6 +13,66 @@
 #define IP_ADDRESS "127.0.0.1"
 
 
+int auction_menu(char buffer[], int sock, int room_joined)
+{
+    printf("Auction start!\n");
+    int duration, starting_price, minimum_increment, isBuyNow, fixed_price;
+    int current_price;
+     // Thong tin phong bao gom roomid, item name, duration, starting price, minimum increment, isBuyNow
+    while(room_joined ==1) 
+    {
+        printf("Waiting for your turn...\n");
+        memset(buffer, 0, sizeof(buffer));
+        read(sock, buffer, sizeof(buffer));
+        if(strcmp(buffer, "YOURTURN")==0){
+        if(isBuyNow ==1){   
+        while(1){
+        int choice;
+        printf("Choose your option:\n");
+        printf("1, Bidding\n");
+        printf("2, Buy Now (pay for ....)"); // phan nay ti them gia kich tran cua san pham vao day
+        printf("3, Skip turn");
+        scanf("%d", &choice);
+        if(choice == 1){
+            int bid_price;
+            printf("Enter your bidding (it must be integer higher than the current price and lower than the max Price)\n");
+            scanf("%d", &bid_price);
+            if(bid_price - current_price < minimum_increment) printf("invallid choice, please choose again!\n");
+            else if(bid_price >= fixed_price) printf("Exceeded bidding price, please come back and choose Buy now option if you really want to do this bid\n");
+            else 
+            {
+                sscanf(buffer, "BIDDING %d", &bid_price);
+                send(sock, buffer, strlen(buffer), 0);
+                break;
+            }
+        if(choice ==2)
+        {
+            int proceed;
+            printf("Press 1 to proceed with the Buy Now option, please think carefully\n");
+            scanf("%d", &proceed);
+            if(proceed==1) {strcpy(buffer, "BUYNOW");send(sock,buffer, strlen(buffer),0);break;}
+        }
+        }
+        }
+        }
+        else if(isBuyNow ==0)
+        {
+            int bid_price;
+            printf("Enter your bidding (it must be integer higher than the current price and lower than the max Price)\n");
+            scanf("%d", &bid_price);
+            if(bid_price - current_price < minimum_increment) printf("invallid choice, please choose again!\n");
+            else if(bid_price >= fixed_price) printf("Exceeded bidding price, please come back and choose Buy now option if you really want to do this bid\n");
+            else 
+            {
+                sscanf(buffer, "BIDDING %d", &bid_price);
+                send(sock, buffer, strlen(buffer), 0);
+                break;
+            }
+        }
+    }
+    }
+}
+
 int main() {
     int sock = 0;
     struct sockaddr_in serv_addr;
