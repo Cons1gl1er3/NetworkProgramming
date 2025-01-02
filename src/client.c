@@ -6,12 +6,37 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 #include "auth.h"
 #include "room.h"
 
 #define PORT 5500
 #define IP_ADDRESS "127.0.0.1"
 
+int running = 1;
+
+void *listen_to_server(void *arg) {
+    int server_fd = *(int *)arg;
+    char buffer[1024];
+
+    while (running) {
+        memset(buffer, 0, sizeof(buffer));
+        int bytes_read = recv(server_fd, buffer, sizeof(buffer) - 1, 0);
+
+        if (bytes_read > 0) {
+            // Display server message
+            printf("\n%s\n", buffer);
+
+            // Notify main thread to reprompt the user
+            printf("Enter 1 to place a fast bid. Enter 2 to place a custom bid.\n");
+            printf("Enter 3 to buy now (if available).\n");
+            printf("Enter your choice: ");
+            fflush(stdout);
+        }
+    }
+
+    pthread_exit(NULL);
+}
 
 int main() {
     int sock = 0;
@@ -19,6 +44,7 @@ int main() {
     char buffer[1024] = {0};
     char command[20];
     char username[USERNAME_LEN];
+    pthread_t listen_thread;
 
     // Create socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -137,14 +163,21 @@ int main() {
                 }
                 printf("Fetch done!\n");
                 printf("%s %s %d %d %d %d\n", room_name, item_name, min_increment, buy_now_option, fixed_price, margin);
-                while (1) {
-                    printf("Enter: ");
-                    int bid;
-                    scanf("%d", &bid);
-                    memset(buffer, 0, sizeof(buffer));
-                    sprintf(buffer, "PLACEBID %d %d", room_id, bid);
+                
+                // Thread to listen to server
+                pthread_create(&listen_thread, NULL, listen_to_server, (void *)&sock);
+
+                char input[256];
+                while (running) {
+                // Get user input
+                printf("Enter your choice: ");
+                fgets(input, sizeof(input), stdin);
+
+                // Send input to server
+                send(sock, input, strlen(input), 0);
                 }
             }
+            pthread_join(listen_thread, NULL);
 
             int choice;
             printf("\nWelcome to the main menu!\n");
@@ -239,9 +272,6 @@ int main() {
                         break; 
                 }
             }
-
-            // Keep the client alive or process main menu commands
-            // sleep(1); // Pause for 1 second (adjust logic as needed)
         }
     }
    

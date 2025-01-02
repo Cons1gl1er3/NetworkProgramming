@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <pthread.h>
 #include "auth.h"
 #include "room.h"
 #include "uthash.h"
@@ -256,58 +257,6 @@ void handle_signal(int signal) {
     }
 }
 
-int handle_place_bid(const char *buffer, int sd, AuctionRoom *rooms_map, UserMap user_table[]) {
-    char room_id_str[ROOM_ID_LEN];
-    int bid;
-    char user_id[USERNAME_LEN] = {0};
-    
-    // Parse the incoming "PLACEBID room_id bid" request
-    if (sscanf(buffer, "PLACEBID %s %d", room_id_str, &bid) != 2) {
-        send(sd, "Bid request failed!\n", 20, 0);
-        return -1; // Indicate error in parsing
-    }
-
-    // Find the user in the user_table
-    int user_found = 0;
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        if (user_table[i].socket_fd == sd) {
-            strncpy(user_id, user_table[i].user_id, sizeof(user_id) - 1);
-            user_id[sizeof(user_id) - 1] = '\0';
-            user_found = 1;
-            break;
-        }
-    }
-
-    if (!user_found) {
-        // send(sd, "User not found in the user table\n", 32, 0);
-        return -2; // User not found
-    }
-
-    // Find the room in the rooms_map
-    AuctionRoom *room = find_room_uthash(room_id_str, rooms_map);
-    if (!room) {
-        send(sd, "Bid request failed!\n", 20, 0);
-        return -3; // Room not found
-    }
-
-    // Check if the bid is valid
-    if (bid <= room->current_highest_bid) {
-        send(sd, "Bid request failed!\n", 20, 0);
-        return -4; // Bid is not higher than the current bid
-    }
-
-    // Update the room's highest bid and bidder
-    room->current_highest_bid = bid;
-    strncpy(room->current_bidder_username, user_id, USERNAME_LEN - 1);
-    room->current_bidder_username[USERNAME_LEN - 1] = '\0';
-
-    // Send success message to the client
-    send(sd, "Bid placed successfully\n", 24, 0);
-    printf("User %s placed a bid of %d on room %s\n", user_id, bid, room_id_str);
-
-    return 1; // Indicate success
-}
-
 void handle_fetch_request(const char *room_id_str, int sd) {
     FILE *file = fopen(ROOMS_FILE, "r");
     if (!file) {
@@ -361,6 +310,153 @@ void handle_fetch_request(const char *room_id_str, int sd) {
         // Room not found in the file
         // send(sd, "FETCHRESPONSE Room not found|\n", 30, 0);
     }
+}
+
+typedef struct {
+    AuctionRoom *room;
+    UserMap *user_table;
+} AuctionTimerArgs;
+
+// Function to broadcast messages to all participants in a room
+void broadcast_message(AuctionRoom *room, const char *message, UserMap user_table[]) {
+    for (int i = 0; i < room->participants_count; i++) {
+        const char *username = room->participants_list[i].username;
+
+        // Find the user's socket FD in user_table
+        for (int j = 0; j < MAX_CLIENTS; j++) {
+            if (strcmp(user_table[j].user_id, username) == 0) {
+                int socket_fd = user_table[j].socket_fd;
+                send(socket_fd, message, strlen(message), 0);
+                break;
+            }
+        }
+    }
+}
+
+void *auction_timer(void *arg) {
+    AuctionTimerArgs *timer_args = (AuctionTimerArgs *)arg;
+    AuctionRoom *room = timer_args->room;
+    UserMap *user_table = timer_args->user_table;
+
+    while (room->time_left > 0) {
+        sleep(1); // Decrement every second
+        room->time_left--;
+
+        // Notify participants every 15 seconds
+        if (room->time_left % 30 == 0) {
+            char message[256];
+            snprintf(message, sizeof(message), "Time to bid: %d seconds. Current bid: $%d. Highest bidder: %s\n",
+                     room->time_left, room->current_highest_bid, room->current_bidder_username);
+            broadcast_message(room, message, user_table);
+        }
+
+        // Check if time is up
+        if (room->time_left == 0) {
+            char end_message[256];
+            snprintf(end_message, sizeof(end_message), "Auction has ended. Final bid: $%d. Winner: %s\n",
+                     room->current_highest_bid, room->current_bidder_username);
+            broadcast_message(room, end_message, user_table);
+            pthread_exit(NULL); // Exit the thread
+        }
+    }
+    return NULL;
+}
+
+void reset_timer(AuctionRoom *room, UserMap user_table[]) {
+    room->time_left = 120; // Reset to 2 minutes
+    char reset_message[256];
+    snprintf(reset_message, sizeof(reset_message), "Timer has reset. Time to bid: 120 seconds\n");
+    broadcast_message(room, reset_message, user_table);
+}
+
+void handle_bid(AuctionRoom *room, const char *username, int bid, UserMap user_table[]) {
+    if (bid <= room->current_highest_bid) {
+        // Notify the user that their bid is too low
+        char low_bid_message[256];
+        snprintf(low_bid_message, sizeof(low_bid_message), "Bid of $%d by %s is too low. Current highest bid: $%d\n",
+                 bid, username, room->current_highest_bid);
+        broadcast_message(room, low_bid_message, user_table);
+        return;
+    }
+
+    // Update the room's highest bid and bidder
+    room->current_highest_bid = bid;
+    strncpy(room->current_bidder_username, username, USERNAME_LEN - 1);
+
+    // Notify all participants of the new bid
+    char bid_message[256];
+    snprintf(bid_message, sizeof(bid_message), "User %s has placed a bid at $%d\n", username, bid);
+    broadcast_message(room, bid_message, user_table);
+
+    // If bid is placed within the last 30 seconds, reset the timer
+    if (room->time_left <= 30) {
+        reset_timer(room, user_table);
+    }
+}
+
+// int handle_place_bid(const char *buffer, int sd, AuctionRoom *rooms_map, UserMap user_table[]) {
+//     char room_id_str[ROOM_ID_LEN];
+//     int bid;
+//     char user_id[USERNAME_LEN] = {0};
+    
+//     // Parse the incoming "PLACEBID room_id bid" request
+//     if (sscanf(buffer, "PLACEBID %s %d", room_id_str, &bid) != 2) {
+//         send(sd, "Bid request failed!\n", 20, 0);
+//         return -1; // Indicate error in parsing
+//     }
+
+//     // Find the user in the user_table
+//     int user_found = 0;
+//     for (int i = 0; i < MAX_CLIENTS; i++) {
+//         if (user_table[i].socket_fd == sd) {
+//             strncpy(user_id, user_table[i].user_id, sizeof(user_id) - 1);
+//             user_id[sizeof(user_id) - 1] = '\0';
+//             user_found = 1;
+//             break;
+//         }
+//     }
+
+//     if (!user_found) {
+//         // send(sd, "User not found in the user table\n", 32, 0);
+//         return -2; // User not found
+//     }
+
+//     // Find the room in the rooms_map
+//     AuctionRoom *room = find_room_uthash(room_id_str, rooms_map);
+//     if (!room) {
+//         send(sd, "Bid request failed!\n", 20, 0);
+//         return -3; // Room not found
+//     }
+
+//     // Check if the bid is valid
+//     if (bid <= room->current_highest_bid) {
+//         send(sd, "Bid request failed!\n", 20, 0);
+//         return -4; // Bid is not higher than the current bid
+//     }
+
+//     // Update the room's highest bid and bidder
+//     room->current_highest_bid = bid;
+//     strncpy(room->current_bidder_username, user_id, USERNAME_LEN - 1);
+//     room->current_bidder_username[USERNAME_LEN - 1] = '\0';
+
+//     // Send success message to the client
+//     send(sd, "Bid placed successfully\n", 24, 0);
+//     printf("User %s placed a bid of %d on room %s\n", user_id, bid, room_id_str);
+
+//     return 1; // Indicate success
+// }
+
+void start_auction(AuctionRoom *room, UserMap user_table[]) {
+    pthread_t timer_thread;
+
+    // Prepare arguments for the timer thread
+    AuctionTimerArgs *timer_args = malloc(sizeof(AuctionTimerArgs));
+    timer_args->room = room;
+    timer_args->user_table = user_table;
+
+    // Launch the timer thread
+    pthread_create(&timer_thread, NULL, auction_timer, (void *)timer_args);
+    pthread_detach(timer_thread); // Detach the thread to run independently
 }
 
 int main() {
@@ -475,9 +571,11 @@ int main() {
                         add_user(username, sd);
                     }
                 } else if (strcmp(command, "CREATEROOM") == 0) {
+                    char room_id_str[ROOM_ID_LEN];
                     create_room_function(buffer, sd, &rooms_map, &num_rooms);
-                    memset(buffer, 0 ,sizeof(buffer));
-                    // print_rooms_map(rooms_map);
+                    sscanf(buffer, "%s %s", command, room_id_str);
+                    AuctionRoom *room = find_room_uthash(room_id_str, rooms_map);
+                    start_auction(room, user_table);
                 } else if (strcmp(command, "QUIT") == 0) {
                     printf("Client requested to disconnect.\n");
                     close(sd);
@@ -497,6 +595,22 @@ int main() {
                     char room_id_str_temp[ROOM_ID_LEN];
                     sscanf(buffer, "FETCH %9s", room_id_str_temp); // Extract room_id from the client's request
                     handle_fetch_request(room_id_str_temp, sd);   // Call the fetch handler
+                } else if (strcmp(command, "PLACEBID") == 0) {
+                    char room_id[ROOM_ID_LEN];
+                    char username[USERNAME_LEN];
+                    int bid;
+                    
+                    sscanf(buffer, "PLACEBID %s %d", room_id, &bid);
+                    for (int i = 0; i < MAX_CLIENTS; i++) {
+                        if (user_table[i].socket_fd == sd) {
+                            strncpy(username, user_table[i].user_id, sizeof(username) - 1);
+                            username[sizeof(username) - 1] = '\0';
+                        }
+                    }
+
+                    AuctionRoom *room = find_room_uthash(room_id, rooms_map);
+                    handle_bid(room, username, bid, user_table);
+
                 } else {
                     send(sd, "Invalid command\n", 17, 0);
                 }
