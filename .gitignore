@@ -1,6 +1,3 @@
-# Ignore the 'data' folder
-data/
-
 # Ignore compiled files
 client
 server
