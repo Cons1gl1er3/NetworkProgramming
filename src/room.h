@@ -79,7 +79,7 @@ void remove_room_uthash(const char *room_id, AuctionRoom *rooms_map);
 
 int create_room(char buffer[], int sock);
 
-int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map);
+int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map, int* num_rooms);
 
 void add_participant(AuctionRoom *temp, const char *username);
 

@@ -223,7 +223,7 @@ int create_room(char buffer[], int sock) {
     return 0; // Success
 }
 
-int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map) {
+int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map, int* num_rooms) {
     Room new_room;
     char datetime[20]; // You might want to keep this for actual usage
   
@@ -286,16 +286,20 @@ int create_room_function(char buffer[], int sd, AuctionRoom **rooms_map) {
             perror("Failed to open real_time.txt for appending");
         }
         // Write room data to file with | delimiter
-        fprintf(rt_file, "%s|%s|%d|%s|%d|%d!%s\n", 
+        char participants_str[MAX_CLIENTS * USERNAME_LEN] = "";
+        fprintf(rt_file, "%s|%s|%d|%s|%d|%d|%d|%s|%s\n", 
                 rt_room->room_id_str, 
                 rt_room->current_item_name, 
                 rt_room->current_highest_bid, 
-                rt_room->current_bidder_username, 
+                rt_room->current_bidder_username,
                 rt_room->time_left, 
                 rt_room->participants_count, 
-                rt_room->room_type);
+                rt_room->room_size,
+                rt_room->room_type,
+                participants_str);
 
         fclose(rt_file);
+        (*num_rooms)++;
     }
     // ============================Vanh code=================================== //
 
