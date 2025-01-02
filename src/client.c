@@ -93,6 +93,16 @@ int main() {
     if (logged_in) {
         while (1) {
             int repeat = 0;
+            int joined = 0;
+            int fetch = 0;
+            // basic info
+            int room_id; char room_name[ROOM_NAME_LEN];
+            char item_name[ITEM_NAME_LEN], int min_increment; int buy_now_option;
+            int fixed_price; int margin;
+
+            // real time data
+            int current_highest_bid; int time_left; int participants_count;
+
             int choice;
             printf("\nWelcome to the main menu!\n");
             printf("Choose an option:\n");
@@ -103,6 +113,39 @@ int main() {
             scanf("%d", &choice);
             getchar(); // Consume the newline character left by scanf
             memset(buffer, 0, sizeof(buffer));
+
+            while (joined == 1) {
+                if (fetch==0) { // Send request for basic information from server. Only send this once
+                    memset(buffer, 0, sizeof(buffer));
+                    snprintf(buffer, sizeof(buffer), "FETCH %d", room_id);
+
+                    // receive basic information from server
+                    // room_name|item_name|min_increment|buy_now_option|fixed_price|margin|
+                    memset(buffer, 0, sizeof(buffer));
+                    read(sock, buffer, sizeof(buffer));
+
+                    char *token = strtok(buffer, "|");
+                    strncpy(room_name, token, ROOM_NAME_LEN - 1);
+                    room_name[ROOM_NAME_LEN - 1] = '\0';
+                    
+                    token = strtok(NULL, "|");
+                    strncpy(item_name, token, ITEM_NAME_LEN - 1);
+                    item_name[ITEM_NAME_LEN - 1] = '\0';
+                    
+                    token = strtok(NULL, "|");
+                    min_increment = atoi(token);
+
+                    token = strtok(NULL, "|");
+                    buy_now_option = atoi(token);
+
+                    token = strtok(NULL, "|");
+                    fixed_price = atoi(token);
+
+                    token = strtok(NULL, "|");
+                    margin = atoi(token);
+                }
+                
+            }
 
             switch(choice) {
                 case 1:
@@ -154,7 +197,7 @@ int main() {
                         memset(buffer, 0, sizeof(buffer));
                         read(sock, buffer, sizeof(buffer));
                         printf("%s", buffer);
-                        if (strcmp(buffer, "Please provide the password: ")) {
+                        if (strcmp(buffer, "Please provide the password: ") == 0) {
                             // Ask user to enter password here
                             char room_password[ROOM_PASSWORD_LEN];
                             scanf("%s", room_password);
@@ -166,6 +209,10 @@ int main() {
                             memset(buffer, 0, sizeof(buffer));
                             read(sock, buffer, sizeof(buffer));
                             printf("%s\n", buffer);
+                        }
+
+                        else if (strcmp(buffer, "Join room successfully!\n") == 0) {
+                            joined = 1;
                         }
 
                         break;
